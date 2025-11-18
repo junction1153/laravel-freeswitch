@@ -15,4 +15,12 @@ yarn-error.log
 /.idea
 /.vscode
 /Modules/*
+public/resources/templates/provision/*
+public/app/provision/upload*
+public/envinfo.ini
+.stfolder
+.stignore
 modules_statuses.json
+app/provision/
+/app/provision/
+app/provision/.gitkeep

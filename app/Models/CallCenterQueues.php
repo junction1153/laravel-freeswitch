@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Session;
 class CallCenterQueues extends Model
 {
     use HasFactory, \App\Models\Traits\TraitUuid;
-
     protected $table = "v_call_center_queues";
 
     public $timestamps = false;
