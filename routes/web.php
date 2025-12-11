@@ -117,6 +117,7 @@ Route::group(['middleware' => 'auth'], function () {
     Route::delete('/extensions/{extension}/callforward/{type}', [ExtensionsController::class, 'clearCallforwardDestination'])->name('extensions.clear-callforward-destination');
     Route::post('/extensions/{extension}/send-event-notify', [ExtensionsController::class, 'sendEventNotify'])->name('extensions.send-event-notify');
     Route::post('/extensions/send-event-notify-all', [ExtensionsController::class, 'sendEventNotifyAll'])->name('extensions.send-event-notify-all');
+    Route::get('/extensions-export', [ExtensionsController::class, 'export'])->name('extensions.export');
 
     // Call Detail Records
     Route::get('/call-detail-records', [CdrsController::class, 'index'])->name('cdrs.index');
@@ -128,6 +129,12 @@ Route::group(['middleware' => 'auth'], function () {
 
     //Domains
     Route::get('domains/extensions', [DomainController::class, 'countExtensionsInDomains']);
+    Route::post('/domains/switch', [DomainController::class, 'switchDomain'])->name('switchDomain');
+    Route::get('/domains/switch', function () {
+        return redirect('/dashboard');
+    });
+    Route::get('/domains/switch/{domain}', [DomainController::class, 'switchDomainFusionPBX'])->name('switchDomainFusionPBX');
+    Route::get('/domains/filter/', [DomainController::class, 'filterDomainsFusionPBX'])->name('filterDomainsFusionPBX');
 
     //Users
     Route::get('users', [UsersController::class, 'index'])->name('users.index');
@@ -137,6 +144,9 @@ Route::group(['middleware' => 'auth'], function () {
 
     // Groups
     Route::get('groups', [GroupsController::class, 'index'])->name('groups.index');
+
+    // Domains
+    Route::get('domains', [DomainController::class, 'index'])->name('domains.index');
 
     //Fax
     Route::get('faxes', [FaxesController::class, 'index'])->name('faxes.index');
@@ -221,18 +231,12 @@ Route::group(['middleware' => 'auth'], function () {
     Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/logout', [App\Http\Controllers\Auth\LoginController::class, 'logout']);
 
-    Route::post('/domains/switch', [DomainController::class, 'switchDomain'])->name('switchDomain');
-    Route::get('/domains/switch', function () {
-        return redirect('/dashboard');
-    });
-    Route::get('/domains/switch/{domain}', [DomainController::class, 'switchDomainFusionPBX'])->name('switchDomainFusionPBX');
-    Route::get('/domains/filter/', [DomainController::class, 'filterDomainsFusionPBX'])->name('filterDomainsFusionPBX');
-
     //Devices
     Route::get('devices', [DeviceController::class, 'index'])->name('devices.index');
 
     //Phone Numbers
     Route::get('phone-numbers', [PhoneNumbersController::class, 'index'])->name('phone-numbers.index');
+    Route::get('/phone-numbers-export', [PhoneNumbersController::class, 'export'])->name('phone-numbers.export');
 
     //Wakeup Calls
     Route::resource('wakeup-calls', WakeupCallsController::class);

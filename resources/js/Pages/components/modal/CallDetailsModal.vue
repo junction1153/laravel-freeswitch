@@ -69,8 +69,32 @@
                                                             <h2 id="applicant-information-title"
                                                                 class="text-lg font-medium leading-6 text-gray-900">
                                                                 Call Information</h2>
-                                                            <p class="mt-1 max-w-2xl text-sm text-gray-500">Call ID: {{
-                                                                item.sip_call_id }}</p>
+                                                            <div class="mt-1 max-w-2xl text-sm text-gray-500 space-y-1">
+                                                                <div class="flex items-start gap-2">
+                                                                    <span class="text-gray-500">SIP Call-ID:</span>
+                                                                    <span class="text-gray-900 break-all">{{ item.sip_call_id || '-' }}</span>
+                                                    <button type="button"
+                                                        @click="handleCopyToClipboard(item.sip_call_id)"
+                                                        class="ml-2 p-1 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                                                        title="Copy to clipboard">
+                                                        <!-- Small Copy Icon -->
+                                                        <ClipboardDocumentIcon
+                                                            class="h-4 w-4 text-gray-500 hover:text-gray-900  cursor-pointer" />
+                                                    </button>
+                                                                </div>
+                                                                <div class="flex items-start gap-2">
+                                                                    <span class="text-gray-500">Unique ID:</span>
+                                                                    <span class="text-gray-900 break-all">{{ item.xml_cdr_uuid || '-' }}</span>
+                                                    <button type="button"
+                                                        @click="handleCopyToClipboard(item.xml_cdr_uuid)"
+                                                        class="ml-2 p-1 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                                                        title="Copy to clipboard">
+                                                        <!-- Small Copy Icon -->
+                                                        <ClipboardDocumentIcon
+                                                            class="h-4 w-4 text-gray-500 hover:text-gray-900  cursor-pointer" />
+                                                    </button>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                         <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
                                                             <dl class="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
@@ -770,6 +794,7 @@ import Loading from "../general/Loading.vue";
 import PhoneOutgoingIcon from "../icons/PhoneOutgoingIcon.vue"
 import PhoneIncomingIcon from "../icons/PhoneIncomingIcon.vue"
 import PhoneLocalIcon from "../icons/PhoneLocalIcon.vue"
+import { ClipboardDocumentIcon } from "@heroicons/vue/24/outline";
 
 import {
     UserGroupIcon,
@@ -799,6 +824,15 @@ const props = defineProps({
         default: 'sm:max-w-lg'
     },
 });
+
+const handleCopyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+        emit('success', 'success', { message: ['Copied to clipboard.'] });
+    }).catch((error) => {
+        // Handle the error case
+        emit('error', { response: { data: { errors: { request: ['Failed to copy to clipboard.'] } } } });
+    });
+}
 
 function capitalizeFirstLetter(string) {
     if (!string) return '';

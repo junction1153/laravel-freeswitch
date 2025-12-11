@@ -57,7 +57,7 @@
 
                                     <FormElements>
 
-                                        <StaticElement name="h4" tag="h4" content="Create new" />
+                                        <StaticElement name="h4" tag="h4" content="Update Settings" />
 
                                         <TextElement name="destination" label="Phone Number"
                                             placeholder="Enter Phone Number" :floating="false" :columns="{
