@@ -24,3 +24,6 @@ modules_statuses.json
 app/provision/
 /app/provision/
 app/provision/.gitkeep
+
+# Scribe generated docs/cache
+.scribe/
