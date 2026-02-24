@@ -227,7 +227,7 @@ Route::group(['middleware' => 'auth'], function () {
     //Phone Numbers
     Route::get('phone-numbers', [PhoneNumbersController::class, 'index'])->name('phone-numbers.index');
     Route::get('/phone-numbers-export', [PhoneNumbersController::class, 'export'])->name('phone-numbers.export');
-    Route::post('/phone-numbers/import', [PhoneNumbersController::class, 'importPreview'])->name('phone-numbers.import');
+    Route::post('/phone-numbers/import', [PhoneNumbersController::class, 'importPreview'])->name('phone-numbers.import.preview');
     Route::post('/phone-numbers/import/commit', [PhoneNumbersController::class, 'importCommit'])->name('phone-numbers.import.commit');
 
     //Wakeup Calls
