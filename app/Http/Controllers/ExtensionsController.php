@@ -90,7 +90,7 @@ class ExtensionsController extends Controller
     {
 
         // Check permissions
-        if (!userCheckPermission("extension_view")) {
+        if (!userCheckPermission("extension_domain")) {
             return redirect('/');
         }
 
@@ -1939,6 +1939,11 @@ class ExtensionsController extends Controller
         $permissions['extension_device_unassign'] = userCheckPermission('extension_device_unassign');
 
         $permissions['manage_mobile_app'] = userCheckPermission('extension_mobile_app_settings');
+        $permissions['manage_voicemail'] = userCheckPermission('extension_voicemail_settings');
+
+        $permissions['create_user'] = userCheckPermission('extension_create_user');
+        $permissions['create_admin'] = userCheckPermission('extension_create_admin');
+
 
         $permissions['extension_export'] = userCheckPermission('extension_export');
         $permissions['extension_import'] = userCheckPermission('extension_import');
