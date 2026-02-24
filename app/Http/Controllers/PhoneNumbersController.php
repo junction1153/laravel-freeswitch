@@ -80,7 +80,7 @@ class PhoneNumbersController extends Controller
                     'bulk_delete' => route('phone-numbers.bulk.delete'),
                     'item_options' => route('phone-numbers.item.options'),
                     'download_template' => route('phone-numbers.template.download'),
-                    'import' => route('phone-numbers.import'),
+                    'import' => route('phone-numbers.import.preview'),
                     'export' => route('phone-numbers.export'),
                 ],
                 'permissions' => [
