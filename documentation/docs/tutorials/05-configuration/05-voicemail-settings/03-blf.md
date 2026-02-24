@@ -32,7 +32,7 @@ Value: vm<EXT> Example:vm100
 Label: Team VM
 ```
 
-> Replace **<EXT>** with the voicemail extension you want to monitor. Example - **vm100** for voicemail extension 100. 
+> Replace **\<EXT\>** with the voicemail extension you want to monitor. Example - **vm100** for voicemail extension 100. 
 
 This creates a SIP subscription to:
 
