@@ -474,7 +474,7 @@
 
                                                             <SelectElement name="key_value_select" label="Value"
                                                                 label-prop="name" value-prop="extension" :search="true"
-                                                                :native="false" :submit="false"
+                                                                :native="false" :submit="false" allow-absent
                                                                 :create="['blf', 'speed_dial', 'park']
                                                                     .includes(form$?.data?.device_keys?.[index]?.key_type)" :append-new-option="false"
                                                                 input-type="search" autocomplete="off" :columns="{
