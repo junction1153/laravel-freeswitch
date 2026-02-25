@@ -346,7 +346,7 @@
                                                                             () => form$.el$(`device_lines.${index}.line_type_id`)?.value === 'externalline'
                                                                         ]" />
 
-                                                                    <TextElement name="auth_id"
+                                                                    <TextElement name="auth_id" id="auth_id2"
                                                                         label="Auth ID"
                                                                         placeholder="Enter auth Id"
                                                                         :floating="false"
