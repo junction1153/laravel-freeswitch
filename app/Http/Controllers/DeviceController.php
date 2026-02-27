@@ -824,7 +824,7 @@ class DeviceController extends Controller
                         return $line;
                     });
 
-                logger($lines);
+                // logger($lines);
 
             }
 
