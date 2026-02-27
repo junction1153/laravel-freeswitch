@@ -262,7 +262,6 @@ class DatabaseSeeder extends Seeder
                 'business_hours_holidays_create',
                 'business_hours_holidays_update',
                 'business_hours_holidays_delete',
-                'extension_domain',
                 'extension_create_user',
                 'extension_create_admin',
                 'extension_device_create',

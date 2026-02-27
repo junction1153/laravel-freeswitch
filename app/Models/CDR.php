@@ -76,7 +76,11 @@ class CDR extends Model
 
     public function getDestinationNumberFormattedAttribute()
     {
-        return $this->destination_number ? formatPhoneNumber($this->destination_number) : null;
+        if ($this->destination_number === null || $this->destination_number === '') {
+            return null;
+        }
+
+        return formatPhoneNumber($this->destination_number);
     }
 
     public function getStartDateAttribute()

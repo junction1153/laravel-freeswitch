@@ -18,6 +18,7 @@ use App\Models\Voicemails;
 use App\Models\Destinations;
 use Illuminate\Support\Carbon;
 use App\Models\CallCenterQueues;
+use App\Models\WakeupCall;
 use App\Models\WhitelistedNumbers;
 use App\Services\CdrDataService;
 use Nwidart\Modules\Facades\Module;
@@ -188,6 +189,12 @@ class DashboardController extends Controller
         //Whitelisted Numbers Count
         if (userCheckPermission("whitelisted_numbers_list_view")) {
             $counts['whitelisted_numbers'] = WhitelistedNumbers::where('domain_uuid', $domain_uuid)
+                ->count();
+        }
+
+        //Wakeup Calls Count
+        if (userCheckPermission("wakeup_calls_list_view")) {
+            $counts['wakeup_calls'] = WakeupCall::where('domain_uuid', $domain_uuid)
                 ->count();
         }
 
@@ -394,6 +401,9 @@ class DashboardController extends Controller
         }
         if (userCheckPermission("whitelisted_numbers_list_view")) {
             $apps[] = ['name' => 'Whitelisted Numbers', 'href' => route('whitelisted-numbers.index'), 'icon' => 'HeartIcon', 'slug' => 'whitelisted_numbers'];
+        }
+        if (userCheckPermission("wakeup_calls_list_view")) {
+            $apps[] = ['name' => 'Wakeup Calls', 'href' => route('wakeup-calls.index'), 'icon' => 'ClockIcon', 'slug' => 'wakeup_calls'];
         }
 
         if (Module::has('ContactCenter') && Module::collections()->has('ContactCenter') && (userCheckPermission("contact_center_settings_edit") || userCheckPermission("contact_center_dashboard_view"))) {

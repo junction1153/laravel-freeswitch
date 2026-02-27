@@ -90,7 +90,7 @@ class ExtensionsController extends Controller
     {
 
         // Check permissions
-        if (!userCheckPermission("extension_domain")) {
+        if (!userCheckPermission("extension_view")) {
             return redirect('/');
         }
 
