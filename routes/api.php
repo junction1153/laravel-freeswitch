@@ -203,8 +203,8 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     Route::post('/phone-numbers/bulk-delete', [PhoneNumbersController::class, 'bulkDelete'])->name('phone-numbers.bulk.delete');
     Route::post('phone-numbers/item-options', [PhoneNumbersController::class, 'getItemOptions'])->name('phone-numbers.item.options');
     Route::get('/phone-numbers/template/download', [PhoneNumbersController::class, 'downloadTemplate'])->name('phone-numbers.template.download');
-    //    Route::post('/phone-numbers/import', [PhoneNumbersController::class, 'import'])->name('phone-numbers.import');
-
+    Route::post('/phone-numbers/import', [PhoneNumbersController::class, 'import'])->name('api.phone-numbers.import');
+    
     //Cloud Provisioning
     Route::get('/cloud-provisioning/{device}/status', [DeviceCloudProvisioningController::class, 'status'])->name('cloud-provisioning.status');
     Route::post('/cloud-provisioning/{device}/reset', [DeviceCloudProvisioningController::class, 'reset'])->name('cloud-provisioning.reset');
