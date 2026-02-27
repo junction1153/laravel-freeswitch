@@ -70,7 +70,7 @@
                                                 <FormTab name="page0" label="Device Settings" :elements="[
                                                     'h4',
                                                     'device_address',
-                                                    'device_clean',
+                                                    'uuid_clean',
                                                     'device_template',
                                                     'device_profile_uuid',
                                                     'domain_uuid',
