@@ -302,7 +302,7 @@
                                                     'container_voicemail',
                                                     'submit_voicemail',
 
-                                                ]" />
+                                                ]" :conditions="[() => options.permissions.manage_voicemail]" />
 
                                                 <FormTab name="devices" label="Devices" :elements="[
                                                     'devices_title',
@@ -1275,6 +1275,7 @@
 
                                                 <ButtonElement name="assign_existing" button-label="Assign Existing"
                                                     @click="handleAssignDeviceButtonClick" :loading="isModalLoading"
+                                                    :conditions="[() => options.permissions.extension_device_assign]"
                                                     :columns="{
                                                         container: 6,
                                                     }" align="left" :secondary="true" />

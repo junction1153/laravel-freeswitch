@@ -1,39 +1,41 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AccountSettingsController;
+use App\Http\Controllers\Api\EmergencyCallController;
+use App\Http\Controllers\Api\HolidayHoursController;
+use App\Http\Controllers\Api\LocationsController;
+use App\Http\Controllers\Api\ProvisioningTemplateController;
+use App\Http\Controllers\BusinessHoursController;
+use App\Http\Controllers\CallTranscriptionController;
 use App\Http\Controllers\CdrsController;
-use App\Http\Controllers\FaxesController;
-use App\Http\Controllers\TokenController;
-use App\Http\Controllers\UsersController;
+use App\Http\Controllers\CharPmsWebhookController;
+use App\Http\Controllers\DeviceCloudProvisioningController;
 use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\DomainController;
-use App\Http\Controllers\GroupsController;
-use App\Http\Controllers\FaxInboxController;
-use App\Http\Controllers\UserLogsController;
-use App\Http\Controllers\EmailLogsController;
-use App\Http\Controllers\HotelRoomController;
-use App\Http\Controllers\VoicemailController;
-use App\Http\Controllers\ExtensionsController;
-use App\Http\Controllers\RingGroupsController;
 use App\Http\Controllers\DomainGroupsController;
-use App\Http\Controllers\PhoneNumbersController;
-use App\Http\Controllers\Api\LocationsController;
-use App\Http\Controllers\BusinessHoursController;
-use App\Http\Controllers\CharPmsWebhookController;
-use App\Http\Controllers\PaymentGatewayController;
-use App\Http\Controllers\SystemSettingsController;
-use App\Http\Controllers\AccountSettingsController;
+use App\Http\Controllers\EmailLogsController;
+use App\Http\Controllers\ExtensionsController;
+use App\Http\Controllers\ExtensionStatisticsController;
+use App\Http\Controllers\FaxesController;
+use App\Http\Controllers\FaxInboxController;
+use App\Http\Controllers\FaxLogController;
+use App\Http\Controllers\FaxSentController;
+use App\Http\Controllers\GroupsController;
+use App\Http\Controllers\HotelHousekeepingDefinitionController;
+use App\Http\Controllers\HotelRoomController;
 use App\Http\Controllers\HotelRoomStatusController;
 use App\Http\Controllers\InboundWebhooksController;
 use App\Http\Controllers\MessageSettingsController;
-use App\Http\Controllers\Api\HolidayHoursController;
-use App\Http\Controllers\Api\EmergencyCallController;
-use App\Http\Controllers\CallTranscriptionController;
-use App\Http\Controllers\ExtensionStatisticsController;
+use App\Http\Controllers\PaymentGatewayController;
+use App\Http\Controllers\PhoneNumbersController;
+use App\Http\Controllers\RingGroupsController;
+use App\Http\Controllers\SystemSettingsController;
+use App\Http\Controllers\TokenController;
+use App\Http\Controllers\UserLogsController;
+use App\Http\Controllers\UsersController;
 use App\Http\Controllers\VirtualReceptionistController;
-use App\Http\Controllers\DeviceCloudProvisioningController;
-use App\Http\Controllers\Api\ProvisioningTemplateController;
-use App\Http\Controllers\HotelHousekeepingDefinitionController;
+use App\Http\Controllers\VoicemailController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -201,7 +203,7 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     Route::post('/phone-numbers/bulk-delete', [PhoneNumbersController::class, 'bulkDelete'])->name('phone-numbers.bulk.delete');
     Route::post('phone-numbers/item-options', [PhoneNumbersController::class, 'getItemOptions'])->name('phone-numbers.item.options');
     Route::get('/phone-numbers/template/download', [PhoneNumbersController::class, 'downloadTemplate'])->name('phone-numbers.template.download');
-//    Route::post('/phone-numbers/import', [PhoneNumbersController::class, 'import'])->name('phone-numbers.import');
+    //    Route::post('/phone-numbers/import', [PhoneNumbersController::class, 'import'])->name('phone-numbers.import');
 
     //Cloud Provisioning
     Route::get('/cloud-provisioning/{device}/status', [DeviceCloudProvisioningController::class, 'status'])->name('cloud-provisioning.status');
@@ -231,10 +233,16 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     Route::get('/fax/inbox/{file}/download', [FaxInboxController::class, 'download'])->name('fax-inbox.fax.download');
     Route::post('/fax/inbox/bulk-delete', [FaxInboxController::class, 'bulkDelete'])->name('fax-inbox.bulk.delete');
     Route::post('/fax/inbox/select-all', [FaxInboxController::class, 'selectAll'])->name('fax-inbox.select.all');
-    Route::get('/fax/sent/{file}/download', [FaxesController::class, 'downloadSentFaxFile'])->name('downloadSentFaxFile');
-    Route::get('/fax/sent/{faxQueue}/{status?}', [FaxesController::class, 'updateStatus'])->name('faxes.file.updateStatus');
     Route::post('/faxes/send', [FaxesController::class, 'sendFax'])->name('faxes.new.fax.send');
     Route::get('/fax/inbox/data', [FaxInboxController::class, 'getData'])->name('fax-inbox.data');
+    Route::get('/fax/sent/data', [FaxSentController::class, 'getData'])->name('fax-sent.data');
+    Route::get('/fax/sent/{file}/download', [FaxSentController::class, 'download'])->name('fax-sent.fax.download');
+    Route::post('/fax/sent/bulk-delete', [FaxSentController::class, 'bulkDelete'])->name('fax-sent.bulk.delete');
+    Route::post('/fax/sent/select-all', [FaxSentController::class, 'selectAll'])->name('fax-sent.select.all');
+    Route::get('/fax/log/data', [FaxLogController::class, 'getData'])->name('fax-logs.data');
+    Route::post('/fax/log/bulk-delete', [FaxLogController::class, 'bulkDelete'])->name('fax-logs.bulk.delete');
+    Route::post('/fax/log/select-all', [FaxLogController::class, 'selectAll'])->name('fax-logs.select.all');
+    // Route::get('/fax/sent/{faxQueue}/{status?}', [FaxesController::class, 'updateStatus'])->name('faxes.file.updateStatus');
 
     // Call Detail Records
     Route::get('/call-detail-records/data', [CdrsController::class, 'getData'])->name('cdrs.data');

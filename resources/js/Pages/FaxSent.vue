@@ -3,7 +3,7 @@
 
         <div class="m-3">
             <DataTable @search-action="handleSearchButtonClick" @reset-filters="handleFiltersReset">
-                <template #title>Fax Inbox</template>
+                <template #title>Sent Faxes</template>
 
                 <template #action>
 
@@ -72,7 +72,7 @@
 
 
 
-                <template v-if="selectPageItems" v-slot:current-selection>
+                <template v-if="selectPageItems || selectAll" v-slot:current-selection>
                     <td colspan="10">
                         <div class="text-sm text-center m-2">
                             <span class="font-semibold ">{{ selectedItems.length }} </span> items are selected.
@@ -392,20 +392,18 @@ const handleDownloadButtonClick = async (uuid) => {
 
 
 const handleSelectAll = () => {
-    axios.post(props.routes.select_all, {
-            filter: filterData.value,
-        
-    })
+    axios.post(props.routes.select_all, { filter: filterData.value })
         .then((response) => {
             selectedItems.value = response.data.items;
             selectAll.value = true;
-            showNotification('success', response.data.messages);
+            selectPageItems.value = true;
 
-        }).catch((error) => {
+            showNotification('success', response.data.messages);
+        })
+        .catch((error) => {
             handleClearSelection();
             handleErrorResponse(error);
         });
-
 };
 
 const hideNotification = () => {
@@ -448,8 +446,8 @@ const handleSelectPageItems = () => {
 };
 
 const handleClearSelection = () => {
-    selectedItems.value = [],
-        selectPageItems.value = false;
+    selectedItems.value = []
+    selectPageItems.value = false;
     selectAll.value = false;
 }
 

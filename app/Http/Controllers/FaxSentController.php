@@ -2,19 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use Inertia\Inertia;
 use App\Models\FaxFiles;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Spatie\QueryBuilder\QueryBuilder;
-use Spatie\QueryBuilder\AllowedFilter;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Inertia\Inertia;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 
-class FaxInboxController extends Controller
+class FaxSentController extends Controller
 {
 
-    protected $viewName = 'FaxInbox';
+    protected $viewName = 'FaxSent';
 
     /**
      * Display a listing of the resource.
@@ -26,7 +27,7 @@ class FaxInboxController extends Controller
         $fax_uuid = request()->route('fax');
 
         // Check permissions
-        if (!userCheckPermission("fax_inbox_view")) {
+        if (!userCheckPermission("fax_sent_view")) {
             return redirect('/');
         }
 
@@ -48,14 +49,13 @@ class FaxInboxController extends Controller
                     return get_local_time_zone($domain_uuid);
                 },
                 'routes' => [
-                    // 'current_page' => route('fax-inbox.index'),
-                    'select_all' => route('fax-inbox.select.all'),
-                    'bulk_delete' => route('fax-inbox.bulk.delete'),
-                    'data_route' => route('fax-inbox.data'),
-                    'download' => route('fax-inbox.fax.download', ['file' => ':file']),
+                    'select_all' => route('fax-sent.select.all'),
+                    'bulk_delete' => route('fax-sent.bulk.delete'),
+                    'data_route' => route('fax-sent.data'),
+                    'download' => route('fax-sent.fax.download', ['file' => ':file']),
                 ],
                 'permissions' => [
-                    'delete' => userCheckPermission('fax_inbox_delete'),
+                    'delete' => userCheckPermission('fax_sent_delete'),
                 ],
 
             ]
@@ -92,7 +92,7 @@ class FaxInboxController extends Controller
                 'fax_date',
 
             ])
-            ->where('fax_mode', 'rx')
+            ->where('fax_mode', 'tx')
             ->with(['fax' => function ($query) {
                 $query->select('fax_uuid', 'fax_caller_id_number');
             }])
@@ -125,8 +125,6 @@ class FaxInboxController extends Controller
             $data = $data->cursor();
         }
 
-        // logger($data);
-
         return $data;
     }
 
@@ -134,7 +132,6 @@ class FaxInboxController extends Controller
     /**
      * Get all items
      *
-     * @return JsonResponse
      */
     public function selectAll()
     {
@@ -147,13 +144,13 @@ class FaxInboxController extends Controller
             if (!empty(data_get($params, 'filter.dateRange'))) {
                 $startTs = Carbon::parse(data_get($params, 'filter.dateRange.0'))
                     ->getTimestamp();
-    
+
                 $endTs = Carbon::parse(data_get($params, 'filter.dateRange.1'))
                     ->getTimestamp();
-    
+
                 $params['filter']['startPeriod'] = $startTs;
                 $params['filter']['endPeriod']   = $endTs;
-    
+
                 unset($params['filter']['dateRange']);
             }
 
@@ -163,7 +160,7 @@ class FaxInboxController extends Controller
                     'fax_uuid',
 
                 ])
-                ->where('fax_mode', 'rx')
+                ->where('fax_mode', 'tx')
                 ->with(['fax' => function ($query) {
                     $query->select('fax_uuid', 'fax_caller_id_number');
                 }])
@@ -195,7 +192,7 @@ class FaxInboxController extends Controller
                 'items' => $data,
             ], 200);
         } catch (\Exception $e) {
-            logger('FaxInboxController@selectAll error: ' . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
+            logger('FaxSentController@selectAll error: ' . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
             // Handle any other exception that may occur
             return response()->json([
                 'success' => false,
@@ -230,7 +227,7 @@ class FaxInboxController extends Controller
 
 
             // Build relative path on the "fax" disk
-            $relative = "{$file->domain->domain_name}/{$file->fax->fax_extension}/inbox/{$baseName}.pdf";
+            $relative = "{$file->domain->domain_name}/{$file->fax->fax_extension}/sent/{$baseName}.pdf";
 
             if (!Storage::disk('fax')->exists($relative)) {
                 return response()->json([
@@ -269,8 +266,7 @@ class FaxInboxController extends Controller
      */
     public function bulkDelete()
     {
-        // Permission gate — change to your real permission key if needed
-        if (! userCheckPermission('fax_inbox_delete')) {
+        if (! userCheckPermission('fax_sent_delete')) {
             return response()->json([
                 'messages' => ['error' => ['Access denied.']]
             ], 403);
@@ -278,52 +274,82 @@ class FaxInboxController extends Controller
 
         request()->validate([
             'items'   => ['required', 'array', 'min:1'],
-            'items.*' => ['uuid'], // if your uuids are strings; otherwise adjust
+            'items.*' => ['uuid'],
         ]);
+
+        $domainUuid = session('domain_uuid');
+        $uuids = request()->input('items', []);
 
         try {
             DB::beginTransaction();
 
-            $domainUuid = session('domain_uuid');
-            $uuids = request()->input('items', []);
-
-            /** @var Collection<\App\Models\FaxFiles> $files */
-            $files = FaxFiles::query()
-                ->where('domain_uuid', $domainUuid)           // domain scope
+            $records = FaxFiles::query()
+                ->where('domain_uuid', $domainUuid)
                 ->whereIn('fax_file_uuid', $uuids)
-                ->with([
-                    'fax:fax_uuid,fax_extension',
-                    'domain:domain_uuid,domain_name',
-                ])
-                ->select('fax_file_uuid', 'domain_uuid', 'fax_uuid', 'fax_file_path')
+                ->select('fax_file_uuid', 'fax_file_path', 'fax_file_type')
                 ->get();
 
-            // Delete physical files first (best-effort), then DB records
-            foreach ($files as $f) {
-                $original   = basename($f->fax_file_path);                 // "+1213...-17-17-03.tif"
-                $base       = pathinfo($original, PATHINFO_FILENAME);
-                $ext        = strtolower(pathinfo($original, PATHINFO_EXTENSION)); // tif/tiff/...
-                $domainName = $f->domain?->domain_name;
-                $extension  = $f->fax?->fax_extension;
+            $failed = [];
 
-                if ($domainName && $extension) {
-                    // Main stored file path (inbox)
-                    $relativeMain = "{$domainName}/{$extension}/inbox/{$base}.{$ext}";
+            foreach ($records as $r) {
+                $tiffPath = (string) $r->fax_file_path;
 
-                    // If you sometimes also keep a converted PDF or thumbnail, delete them too:
-                    $candidatePaths = [
-                        $relativeMain,
-                        "{$domainName}/{$extension}/inbox/{$base}.pdf",
-                        // "{$domainName}/{$extension}/inbox/{$base}.png",
-                        // "{$domainName}/{$extension}/inbox/{$base}.jpg",
+                if ($tiffPath === '') {
+                    $failed[] = [
+                        'fax_file_uuid' => $r->fax_file_uuid,
+                        'reason' => 'fax_file_path is empty',
                     ];
-
-                    // Best-effort delete; ignore missing
-                    Storage::disk('fax')->delete(array_filter($candidatePaths));
+                    continue;
                 }
 
-                // Finally delete the DB record
-                $f->delete();
+                // Build sibling paths in same directory, same base name
+                $dir  = rtrim(pathinfo($tiffPath, PATHINFO_DIRNAME), DIRECTORY_SEPARATOR);
+                $base = pathinfo($tiffPath, PATHINFO_FILENAME);
+
+                // Always attempt to delete both the TIFF (whatever ext is in the path) and the PDF
+                $candidates = array_values(array_unique(array_filter([
+                    $tiffPath,
+                    $dir . DIRECTORY_SEPARATOR . $base . '.pdf',
+
+                    // Optional extra safety (uncomment if you sometimes store .tiff instead of .tif)
+                    $dir . DIRECTORY_SEPARATOR . $base . '.tif',
+                    $dir . DIRECTORY_SEPARATOR . $base . '.tiff',
+                ])));
+
+                // Attempt deletes (ignore missing, but track failures to delete existing files)
+                foreach ($candidates as $path) {
+                    try {
+                        if (File::exists($path)) {
+                            $ok = File::delete($path);
+                            if (! $ok && File::exists($path)) {
+                                $failed[] = [
+                                    'fax_file_uuid' => $r->fax_file_uuid,
+                                    'path' => $path,
+                                    'reason' => 'delete returned false',
+                                ];
+                            }
+                        }
+                    } catch (\Throwable $e) {
+                        $failed[] = [
+                            'fax_file_uuid' => $r->fax_file_uuid,
+                            'path' => $path,
+                            'reason' => $e->getMessage(),
+                        ];
+                    }
+                }
+
+                // Now safe to delete DB record
+                $r->delete();
+            }
+
+            // Strict: if any failures, rollback everything so DB/files stay consistent
+            if (! empty($failed)) {
+                DB::rollBack();
+
+                return response()->json([
+                    'messages' => ['error' => ['Some fax files could not be deleted, so no records were removed.']],
+                    'failed' => $failed,
+                ], 422);
             }
 
             DB::commit();
@@ -333,7 +359,7 @@ class FaxInboxController extends Controller
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
-            logger('Error: ' . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
+            logger('FaxSentController@bulkDelete error: ' . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
 
             return response()->json([
                 'messages' => ['error' => ['An error occurred while deleting the selected fax file(s).']]
