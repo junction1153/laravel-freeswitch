@@ -44,13 +44,13 @@ use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\HeadingRowImport;
 use App\Services\CallRoutingOptionsService;
 use Maatwebsite\Excel\Excel as ExcelWriter;
-use Propaganistas\LaravelPhone\PhoneNumber;
 use App\Http\Requests\StoreExtensionRequest;
 use App\Http\Requests\UpdateExtensionRequest;
 use Spatie\Activitylog\Facades\CauserResolver;
-use Propaganistas\LaravelPhone\Exceptions\NumberParseException;
 use App\Traits\ChecksLimits;
 use App\Exports\ExtensionsExport;
+use App\Models\DomainSettings;
+use App\Models\DefaultSettings;
 
 class ExtensionsController extends Controller
 {
@@ -175,8 +175,7 @@ class ExtensionsController extends Controller
                 AllowedFilter::exact('enabled'), // Example: filter[enabled]=true
             ])
             // allow ?sort=-username or ?sort=add_date
-            ->allowedSorts(['extension'])
-            ->defaultSort('extension')
+            ->allowedSorts(['extension', 'outbound_caller_id_number', 'description'])            ->defaultSort('extension')
             ->paginate($perPage);
 
         // wrap in your DTO
@@ -442,6 +441,7 @@ class ExtensionsController extends Controller
                                 'voicemail_description',
                                 'voicemail_tutorial',
                                 'voicemail_recording_instructions',
+                                'voicemail_alternate_greet_id',
                             )
                             ->with([
                                 'voicemail_destinations' => function ($q) {
@@ -511,6 +511,7 @@ class ExtensionsController extends Controller
                     'forward_user_not_registered_target_extension',
                 ]);
 
+
             $extensionDto = ExtensionDetailData::from([
                 ...$extension->toArray(),
                 'follow_me_destinations' => $extension->followMe
@@ -536,44 +537,26 @@ class ExtensionsController extends Controller
                 ? $extension->voicemail->voicemail_destinations->pluck('voicemail_uuid_copy')->values()->all()
                 : [];
 
-            $voicemailGreetings = $extension->voicemail && $extension->voicemail->greetings
-                ? $extension->voicemail->greetings
-                ->sortBy('greeting_id')
-                ->map(function ($greeting) {
-                    return [
-                        'value' => $greeting->greeting_id,
-                        'label' => $greeting->greeting_name,
-                        'description' => $greeting->greeting_description,
-                    ];
-                })->toArray()
-                : [];
-
-            // Add the default options at the beginning of the array
-            array_unshift(
-                $voicemailGreetings,
-                ['value' => '0', 'label' => 'None'],
-                ['value' => '-1', 'label' => 'System Default']
-            );
 
             if ($extension->voicemail) {
                 $voicemailDto = VoicemailData::from([
                     ...$extension->voicemail->toArray(),
-                    'voicemail_destinations' => $voicemailDestinations,
-                    'greetings' => $voicemailGreetings,
+                    'voicemail_copies' => $voicemailDestinations,
                 ]);
             } else {
                 $voicemailDto = VoicemailData::from([
                     'voicemail_enabled' => 'false',
                     'voicemail_id' => $extension->extension,
-                    'voicemail_password' => get_domain_setting('password_complexity') == 'true' ? $attributes['voicemail_password'] = str_pad(mt_rand(0, 9999), 4, '0', STR_PAD_LEFT) : $extension->extension,
+                    'voicemail_password' => get_domain_setting('password_complexity') == 'true'
+                        ? str_pad(mt_rand(0, 9999), 4, '0', STR_PAD_LEFT)
+                        : $extension->extension,
                     'voicemail_transcription_enabled' => 'true',
                     'voicemail_file' => 'attach',
                     'voicemail_local_after_email' => 'true',
                     'greeting_id' => '-1',
-                    'voicemail_transcription_enabled' => 'true',
                     'voicemail_recording_instructions' => 'true',
                     'voicemail_tutorial' => 'false',
-                    'greetings' => $voicemailGreetings,
+                    'voicemail_alternate_greet_id' => null,
                 ]);
             }
 
@@ -588,7 +571,7 @@ class ExtensionsController extends Controller
                     'recorded_name_route' => route('voicemail.recorded_name', $extension->voicemail),
                     'delete_recorded_name_route' => route('voicemails.deleteRecordedName', $extension->voicemail),
                     'upload_recorded_name_route' => route('voicemails.uploadRecordedName', $extension->voicemail),
-                    // 'update_route' => route('voicemails.update', $extension->voicemail),
+                    'get_greetings_route' => route('voicemails.getGreetings', $extension->voicemail),
                 ]);
             }
 
@@ -787,6 +770,7 @@ class ExtensionsController extends Controller
         return response()->json([
             'item'        => $extensionDto,
             'voicemail' => $voicemailDto ?? null,
+            'voicemail_copies' => $voicemailDestinations ?? [],
             'all_voicemails' => $allVoicemails ?? null,
             'all_devices' => $allDevices ?? null,
             'permissions' => $permissions,
@@ -812,15 +796,18 @@ class ExtensionsController extends Controller
      */
     public function callerId(Request $request)
     {
-        // Find user trying to access the page
         $appUser = MobileAppUsers::where('user_id', $request->user)->first();
 
-        // If user not found throw an error
-        if (!isset($appUser)) {
+        if (!$appUser) {
             abort(403, 'Unauthorized user. Contact your administrator');
         }
 
-        // Get all active phone numbers
+        $extension = Extensions::find($appUser->extension_uuid);
+
+        if (!$extension) {
+            abort(403, 'Unauthorized extension. Contact your administrator');
+        }
+
         $destinations = Destinations::where('destination_enabled', 'true')
             ->where('domain_uuid', $appUser->domain_uuid)
             ->get([
@@ -828,115 +815,112 @@ class ExtensionsController extends Controller
                 'destination_number',
                 'destination_enabled',
                 'destination_description',
-                DB::Raw("coalesce(destination_description , 'n/a') as destination_description"),
+                DB::raw("coalesce(destination_description, 'n/a') as destination_description"),
             ])
-            ->sortBy('destination_description');
+            ->sortBy('destination_description')
+            ->values();
 
-        // If destinaions not found throw an error
-        if (!isset($destinations)) {
-            abort(403, 'Unauthorized action. Contact your administrator1');
+        $countryCode = get_domain_setting('country', $appUser->domain_uuid) ?? 'US';
+
+        $currentCallerIdE164 = null;
+
+        if (!blank($extension->outbound_caller_id_number)) {
+            $currentCallerIdE164 = formatPhoneNumber(
+                $extension->outbound_caller_id_number,
+                $countryCode,
+                PhoneNumberFormat::E164
+            );
         }
 
-        // Get extension for user accessing the page
-        $extension = Extensions::find($appUser->extension_uuid);
+        $destinations = $destinations->map(function ($destination) use ($countryCode, $currentCallerIdE164) {
+            $formattedNumber = formatPhoneNumber(
+                $destination->destination_number,
+                $countryCode,
+                PhoneNumberFormat::NATIONAL
+            );
 
-        // If extension not found throw an error
-        if (!isset($extension)) {
-            abort(403, 'Unauthorized extension. Contact your administrator');
-        }
+            $destinationE164 = formatPhoneNumber(
+                $destination->destination_number,
+                $countryCode,
+                PhoneNumberFormat::E164
+            );
 
-        //Get libphonenumber object
-        $phoneNumberUtil = \libphonenumber\PhoneNumberUtil::getInstance();
+            return [
+                'destination_uuid' => $destination->destination_uuid,
+                'destination_number' => $formattedNumber,
+                'destination_description' => $destination->destination_description,
+                'isCallerID' => !blank($currentCallerIdE164) && $destinationE164 === $currentCallerIdE164,
+            ];
+        });
 
-        //check if this extension already have caller IDs assigend to it
-        // if yes, add TRUE column to the new array $phone_numbers
-        $phone_numbers = array();
-        foreach ($destinations as $destination) {
-            if (isset($extension->outbound_caller_id_number) && $extension->outbound_caller_id_number <> "") {
-                try {
-                    $phoneNumberObject = $phoneNumberUtil->parse($destination->destination_number, 'US');
-                    if ($phoneNumberUtil->isValidNumber($phoneNumberObject)) {
-                        $destination->destination_number = $phoneNumberUtil
-                            ->format($phoneNumberObject, \libphonenumber\PhoneNumberFormat::NATIONAL);
-                    }
-                } catch (NumberParseException $e) {
-                    // Do nothing and leave the numner as is
-                }
-
-                if ($phoneNumberUtil->format($phoneNumberObject, PhoneNumberFormat::E164) == (new PhoneNumber($extension->outbound_caller_id_number, "US"))->formatE164()) {
-                    $destination->isCallerID = true;
-                } else {
-                    $destination->isCallerID = false;
-                }
-            } else {
-                $destination->isCallerID = false;
-            }
-        }
-
-        // $format = PhoneNumberFormat::NATIONAL;
-        // $phone_number = phone("6467052267","US",$format);
-        // dd($phone_numbers);
-
-        return view('layouts.extensions.callerid')
-            ->with('destinations', $destinations)
-            ->with('national_phone_number_format', PhoneNumberFormat::NATIONAL)
-            ->with('extension', $extension);
+        return Inertia::render('ExtensionCallerId', [
+            'extension_uuid' => $extension->extension_uuid,
+            'destinations' => $destinations,
+            'routes' => [
+                'update' => route('updateCallerID', $extension->extension_uuid),
+            ],
+        ]);
     }
 
-    /**
-     * Update caller ID for user.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function updateCallerID($extension_uuid)
+    public function updateCallerID(Request $request, $extension_uuid)
     {
         $extension = Extensions::find($extension_uuid);
+
         if (!$extension) {
             return response()->json([
                 'status' => 401,
                 'error' => [
                     'message' => 'Invalid extension. Please, contact administrator'
                 ]
-            ]);
+            ], 401);
         }
 
-        $destination = Destinations::find(request('destination_uuid'));
+        $destination = Destinations::find($request->destination_uuid);
+
         if (!$destination) {
             return response()->json([
                 'status' => 401,
                 'error' => [
                     'message' => 'Invalid phone number ID submitted. Please, contact your administrator'
                 ]
-            ]);
+            ], 401);
         }
 
-        // set causer for activity log
         CauserResolver::setCauser($extension);
 
-        // Update the caller ID field for user's extension
-        // If successful delete cache
-        if (request('set') == "true") {
-            try {
-                $extension->outbound_caller_id_number = (new PhoneNumber($destination->destination_number, "US"))->formatE164();
-            } catch (NumberParseException $e) {
-                $extension->outbound_caller_id_number = $destination->destination_number;
+        try {
+            $countryCode = get_domain_setting('country', $extension->domain_uuid) ?? 'US';
+
+            if ($request->set === true || $request->set === 'true') {
+                $extension->outbound_caller_id_number = formatPhoneNumber(
+                    $destination->destination_number,
+                    $countryCode,
+                    PhoneNumberFormat::E164
+                );
+            } else {
+                $extension->outbound_caller_id_number = null;
             }
-        } else {
-            $extension->outbound_caller_id_number = null;
+
+            $extension->save();
+
+            FusionCache::clear("directory:" . $extension->extension . "@" . $extension->user_context);
+
+            return response()->json([
+                'status' => 200,
+                'success' => [
+                    'message' => 'The caller ID was successfully updated'
+                ]
+            ]);
+        } catch (\Exception $e) {
+            logger('ExtensionsController@updateCallerID error: ' . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
+
+            return response()->json([
+                'status' => 500,
+                'error' => [
+                    'message' => 'There was an error updating the caller ID'
+                ]
+            ], 500);
         }
-        $extension->save();
-
-        //clear fusionpbx cache
-        FusionCache::clear("directory:" . $extension->extension . "@" . $extension->user_context);
-
-
-        // If successful return success status
-        return response()->json([
-            'status' => 200,
-            'success' => [
-                'message' => 'The caller ID was successfully updated'
-            ]
-        ]);
     }
 
 
@@ -946,7 +930,7 @@ class ExtensionsController extends Controller
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
      */
-    public function store(StoreExtensionRequest $request)
+public function store(StoreExtensionRequest $request)
     {
         $data = $request->validated();
 
@@ -956,9 +940,24 @@ class ExtensionsController extends Controller
             // 1) Create the extension
             $extension = Extensions::create($data);
 
-            // 2) Create the voicemail entry for this extension
+            // 2) Create or link the voicemail entry for this extension
             if (!empty($data['voicemail_id'])) {
-                $voicemail = Voicemails::create($data);
+                // Prepare necessary linking data
+                $data['extension_uuid'] = $extension->extension_uuid;
+                $data['domain_uuid'] = $extension->domain_uuid;
+
+                // Look for an orphaned/existing voicemail box
+                $existingVoicemail = Voicemails::where('domain_uuid', $extension->domain_uuid)
+                    ->where('voicemail_id', $data['voicemail_id'])
+                    ->first();
+
+                if ($existingVoicemail) {
+                    // Box exists! Just re-attach it to this extension and update its settings
+                    $existingVoicemail->update($data);
+                } else {
+                    // Box doesn't exist, create a brand new one
+                    Voicemails::create($data);
+                }
             }
 
             $extension->advSettings()->updateOrCreate(
@@ -1139,29 +1138,30 @@ class ExtensionsController extends Controller
 
 
     public function update(UpdateExtensionRequest $request, $id)
-    {    
+    {
         try {
             DB::beginTransaction();
             $data = $request->validated();
 
-   $canManageVoicemail = userCheckPermission('extension_voicemail_settings');
+            $canManageVoicemail = userCheckPermission('extension_voicemail_settings');
 
-    if (!$canManageVoicemail) {
-        unset(
-            $data['voicemail_enabled'],
-            $data['voicemail_id'],
-            $data['greeting_id'],
-            $data['voicemail_file'],
-            $data['voicemail_local_after_email'],
-            $data['voicemail_transcription_enabled'],
-            $data['voicemail_description'],
-            $data['voicemail_destinations'],
-            $data['voicemail_password'],
-            $data['voicemail_tutorial'],
-            $data['voicemail_recording_instructions'],
-            $data['voicemail_sms_to']
-        );
-    }
+            if (!$canManageVoicemail) {
+                unset(
+                    $data['voicemail_enabled'],
+                    $data['voicemail_id'],
+                    $data['greeting_id'],
+                    $data['voicemail_file'],
+                    $data['voicemail_local_after_email'],
+                    $data['voicemail_transcription_enabled'],
+                    $data['voicemail_description'],
+                    $data['voicemail_copies'],
+                    $data['voicemail_password'],
+                    $data['voicemail_tutorial'],
+                    $data['voicemail_recording_instructions'],
+                    $data['voicemail_sms_to'],
+                    $data['voicemail_alternate_greet_id']
+                );
+            }
 
             $currentDomain = session('domain_uuid');
 
@@ -1213,20 +1213,29 @@ class ExtensionsController extends Controller
 
             $extension->update($data);
 
-        // Update related voicemail only when user has permission
-        if ($canManageVoicemail) {
-            if ($extension->voicemail) {
+// Update related voicemail only when user has permission
+            if ($canManageVoicemail) {
+                // Ensure IDs are strictly enforced
                 $data['voicemail_id'] = $extension->extension;
-                $extension->voicemail->update($data);
-            } else {
-                if (($data['voicemail_enabled'] ?? 'false') == 'true') {
-                    $data['extension_uuid'] = $extension->extension_uuid;
-                    $data['domain_uuid'] = $currentDomain;
-                    $data['voicemail_id'] = $extension->extension;
-                    Voicemails::create($data);
+                $data['extension_uuid'] = $extension->extension_uuid;
+                $data['domain_uuid'] = $currentDomain;
+
+                // Look for the voicemail box by ID instead of relationship, 
+                // just in case it exists but was unlinked (orphaned)
+                $voicemail = Voicemails::where('domain_uuid', $currentDomain)
+                    ->where('voicemail_id', $extension->extension)
+                    ->first();
+
+                if ($voicemail) {
+                    // Re-link and update
+                    $voicemail->update($data);
+                } else {
+                    // Create new only if enabled
+                    if (($data['voicemail_enabled'] ?? 'false') == 'true') {
+                        Voicemails::create($data);
+                    }
                 }
             }
-        }
 
             $extension->advSettings()->updateOrCreate(
                 ['extension_uuid' => $extension->extension_uuid],
@@ -1236,11 +1245,11 @@ class ExtensionsController extends Controller
             // Handle voicemail_destinations (copies)
             if (
                 $canManageVoicemail
-                && isset($data['voicemail_destinations'])
-                && is_array($data['voicemail_destinations'])
+                && isset($data['voicemail_copies'])
+                && is_array($data['voicemail_copies'])
                 && $extension->voicemail
             ) {
-                $extension->voicemail->syncCopies($data['voicemail_destinations']);
+                $extension->voicemail->syncCopies($data['voicemail_copies']);
             }
 
             // update mobile app
@@ -1454,6 +1463,8 @@ class ExtensionsController extends Controller
         $domain_uuid = session('domain_uuid');
         $uuids = $request->input('items', []);
 
+        $retainVoicemail = filter_var($request->input('retain_voicemail', false), FILTER_VALIDATE_BOOLEAN);
+
         try {
             DB::beginTransaction();
 
@@ -1462,26 +1473,27 @@ class ExtensionsController extends Controller
                 'extension_users',
                 'mobile_app',
                 'advSettings',
-            ])
-                ->with([
-                    'deviceLines' => function ($q) use ($domain_uuid) {
-                        $q->where('domain_uuid', $domain_uuid)
-                            ->select('device_line_uuid', 'device_uuid', 'auth_id', 'domain_uuid', 'password');
-                    }
-                ])
-                ->with(['voicemail' => function ($query) use ($domain_uuid) {
+                'deviceLines' => function ($q) use ($domain_uuid) {
+                    $q->where('domain_uuid', $domain_uuid)
+                        ->select('device_line_uuid', 'device_uuid', 'auth_id', 'domain_uuid', 'password');
+                },
+                'voicemail' => function ($query) use ($domain_uuid) {
                     $query->where('domain_uuid', $domain_uuid);
-                }])
-                ->where('domain_uuid', $domain_uuid)
-                ->whereIn('extension_uuid', $uuids)
-                ->get();
-
-
+                }
+            ])
+            ->where('domain_uuid', $domain_uuid)
+            ->whereIn('extension_uuid', $uuids)
+            ->get();
 
             foreach ($extensions as $extension) {
-                // 1. Delete voicemail
+                // 1. Delete or Retain voicemail
                 if ($extension->voicemail) {
-                    $extension->voicemail->delete();
+                    if ($retainVoicemail) {
+                        // Unlink the voicemail so it becomes a standalone team inbox
+                        $extension->voicemail->update(['extension_uuid' => null]);
+                    } else {
+                        $extension->voicemail->delete();
+                    }
                 }
 
                 // 2. Delete followMe and destinations
@@ -1502,14 +1514,11 @@ class ExtensionsController extends Controller
 
                 // 5. Mobile app users: dispatch job, then delete
                 if ($extension->mobile_app) {
-                    // Prepare payload for API/job (this data is NOT saved to DB, just sent to the API)
                     $mobileAppPayload = [
                         'mobile_app_user_uuid' => $extension->mobile_app_user_uuid,
                         'user_id'   => $extension->mobile_app->user_id,
                         'org_id'    => $extension->mobile_app->org_id,
                     ];
-
-                    // Dispatch job
                     DeleteAppUser::dispatch($mobileAppPayload)->onQueue('default');
                 }
 
@@ -1521,13 +1530,13 @@ class ExtensionsController extends Controller
                 // 7. Delete the extension itself
                 $extension->delete();
 
-                // 7. Clear FusionPBX cache for this extension
+                // 8. Clear FusionPBX cache for this extension
                 if ($extension->extension && $extension->user_context) {
                     FusionCache::clear("directory:" . $extension->extension . "@" . $extension->user_context);
                 }
             }
 
-            // 8. Clear the destinations session array if present
+            // 9. Clear the destinations session array if present
             if (isset($_SESSION['destinations']['array'])) {
                 unset($_SESSION['destinations']['array']);
             }

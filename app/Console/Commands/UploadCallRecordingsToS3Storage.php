@@ -160,8 +160,14 @@ class UploadCallRecordingsToS3Storage extends Command
                 // 2. MASS UPDATE
                 // Update ALL CDRs that match this filename and path. 
                 // This covers the current $rec AND any other CDRs sharing this file.
+                $recordingStart = Carbon::parse($rec->start_stamp);
+
                 CDR::where('record_name', $originalRecordName)
                     ->where('record_path', $originalRecordPath)
+                    ->whereBetween('start_stamp', [
+                        $recordingStart->copy()->subDay(),
+                        $recordingStart->copy()->addDay(),
+                    ])
                     ->update([
                         'record_path' => 'S3',
                         'record_name' => $objectKey
@@ -252,8 +258,8 @@ class UploadCallRecordingsToS3Storage extends Command
 
         $process = new Process([
             'ffmpeg',
-            '-nostdin',        // never prompt / read from stdin
-            '-y',              // overwrite output if it exists
+            '-nostdin',
+            '-y',
             '-i',
             $recordingFile,
             '-b:a',
@@ -265,9 +271,13 @@ class UploadCallRecordingsToS3Storage extends Command
             $mp3File,
         ]);
 
+        $process->setTimeout(7200); // 2 hours
+
         try {
             $process->mustRun();
             return $mp3File;
+        } catch (ProcessTimedOutException $e) {
+            logger('FFmpeg timed out for file: ' . $recordingFile . '. Error: ' . $e->getMessage());            return null;
         } catch (ProcessFailedException $e) {
             logger($e->getMessage());
             return null;
@@ -340,13 +350,17 @@ class UploadCallRecordingsToS3Storage extends Command
 
     protected function getCallRecordingIds(int $limit): array
     {
+        $minimumAgeMinutes = 360;
+
         return CDR::query()
             ->whereNotNull('record_name')
             ->where('record_name', '<>', '')
+            ->whereNotNull('record_path')
+            ->where('record_path', '<>', '')
             ->where('record_path', 'not like', '%S3%')
             ->where('record_path', 'not like', '%NFS%')
             ->where('hangup_cause', '<>', 'LOSE_RACE')
-            ->where('start_stamp', '<=', now())
+            ->where('start_stamp', '<=', now()->subMinutes($minimumAgeMinutes))
             ->orderBy('start_stamp', 'asc')
             ->limit($limit)
             ->pluck('xml_cdr_uuid')

@@ -15,6 +15,13 @@ use App\Console\Commands\Updates\Update121;
 use App\Console\Commands\Updates\Update131;
 use App\Console\Commands\Updates\Update140;
 use App\Console\Commands\Updates\Update145;
+use App\Console\Commands\Updates\Update150;
+use App\Console\Commands\Updates\Update160;
+use App\Console\Commands\Updates\Update161;
+use App\Console\Commands\Updates\Update162;
+use App\Console\Commands\Updates\Update163;
+use App\Console\Commands\Updates\Update164;
+use App\Console\Commands\Updates\Update165;
 use App\Console\Commands\Updates\Update0917;
 use App\Console\Commands\Updates\Update0918;
 use App\Console\Commands\Updates\Update0924;
@@ -33,7 +40,6 @@ use App\Console\Commands\Updates\Update0969;
 use App\Console\Commands\Updates\Update0970;
 use App\Services\GitHubApiService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\Process\Process;
 
 class UpdateApp extends Command
@@ -107,8 +113,17 @@ class UpdateApp extends Command
             '1.3.1' => Update131::class,
             '1.4.0' => Update140::class,
             '1.4.5' => Update145::class,
+            '1.5.0' => Update150::class,
+            '1.6.0' => Update160::class,
+            '1.6.1' => Update161::class,
+            '1.6.2' => Update162::class,
+            '1.6.3' => Update163::class,
+            '1.6.4' => Update164::class,
+            '1.6.5' => Update165::class,
             // Add more versions as needed
         ];
+
+        $supervisorProgramsToRestart = [];
 
         foreach ($updateSteps as $version => $updateClass) {
             if (version_compare($currentVersion, $version, '<')) {
@@ -119,6 +134,13 @@ class UpdateApp extends Command
                     // If the update fails, stop further updates and exit with failure
                     $this->error("Update to version $version failed. Stopping further updates.");
                     exit(1);
+                }
+
+                if (method_exists($updateInstance, 'getSupervisorProgramsToRestart')) {
+                    $supervisorProgramsToRestart = array_unique(array_merge(
+                        $supervisorProgramsToRestart,
+                        $updateInstance->getSupervisorProgramsToRestart()
+                    ));
                 }
 
                 // If the update is successful, call the version:set command
@@ -144,24 +166,15 @@ class UpdateApp extends Command
         $this->runArtisanCommand('modules:refresh');
 
         $this->executeCommand('php artisan route:cache');
-        $this->runArtisanCommand('queue:restart');
+        $this->executeCommand('php artisan queue:restart');
+        $this->runArtisanCommand('horizon:terminate');
 
         //Seed the db
-        $this->runArtisanCommand('db:seed', ['--force' => true]);
+        $this->executeCommand('php artisan db:seed --force');
 
-        //Seed the templates
-        echo "Running prov:templates:seed...\n";
-        try {
-            $exitCode = Artisan::call('prov:templates:seed', [
-                '--no-interaction' => true,
-            ]);
-            echo Artisan::output();
-            if ($exitCode !== 0) {
-                echo "prov:templates:seed returned non-zero exit code: {$exitCode} (continuing)\n";
-            }
-        } catch (\Throwable $e) {
-            echo "Skipping prov:templates:seed due to error: {$e->getMessage()}\n";
-        }
+        $this->info("Seeding Templates...");
+        // Run prov:templates:seed in a subprocess too
+        $this->executeCommand('php artisan prov:templates:seed --no-interaction', 300);
 
         // Create storage link
         $this->runArtisanCommand('storage:link', ['--force' => true]);
@@ -177,15 +190,19 @@ class UpdateApp extends Command
         // Change ownership of the current directory
         $this->changeDirectoryOwnership($currentDirectory);
 
+        if (!empty($supervisorProgramsToRestart)) {
+            $this->restartSupervisorPrograms($supervisorProgramsToRestart);
+        }
+
         $this->info('Update completed successfully!');
     }
 
 
-    protected function executeCommand($command, $timeout = 60)
+    protected function executeCommand($command, $timeout = 60, $failOnError = true)
     {
         $process = Process::fromShellCommandline($command);
-        $process->setTimeout($timeout); // Set the timeout
-        $process->setTty(true); // Enable TTY mode to preserve color output
+        $process->setTimeout($timeout);
+        $process->setTty(true);
         $process->run(function ($type, $buffer) {
             if (Process::ERR === $type) {
                 $this->error($buffer);
@@ -196,7 +213,10 @@ class UpdateApp extends Command
 
         if (!$process->isSuccessful()) {
             $this->error("Command '$command' failed.");
-            exit(1);
+
+            if ($failOnError) {
+                exit(1);
+            }
         }
     }
 
@@ -229,5 +249,20 @@ class UpdateApp extends Command
 
         // Execute the chown command
         $this->executeCommand("chown -R www-data:www-data $directory");
+    }
+
+    protected function restartSupervisorPrograms(array $programs)
+    {
+        $programs = array_values(array_filter(array_unique($programs)));
+
+        if (empty($programs)) {
+            return;
+        }
+
+        $this->info('Restarting Supervisor programs: ' . implode(', ', $programs));
+
+        $escapedPrograms = implode(' ', array_map('escapeshellarg', $programs));
+
+        $this->executeCommand("supervisorctl restart {$escapedPrograms}", 120, false);
     }
 }

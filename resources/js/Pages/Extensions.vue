@@ -53,20 +53,49 @@
 
             <template #table-header>
                 <!-- Checkbox + Extension column -->
-                <TableColumnHeader
-                    class="flex whitespace-nowrap px-4 py-3.5 text-left text-sm font-semibold text-gray-900 items-center justify-start">
-                    <input type="checkbox" v-model="selectPageItems" @change="handleSelectPageItems"
-                        class="h-4 w-4 rounded border-gray-300 text-indigo-600">
+            <TableColumnHeader
+                class="flex whitespace-nowrap px-4 py-3.5 text-left text-sm font-semibold text-gray-900 items-center justify-start">
+                <input type="checkbox" v-model="selectPageItems" @change="handleSelectPageItems"
+                    class="h-4 w-4 rounded border-gray-300 text-indigo-600">
 
-                    <span class="pl-14">Extension</span>
-                </TableColumnHeader>
+                <div class="flex items-center cursor-pointer select-none pl-14"
+                    @click="handleSortRequest('extension')">
+                    <span class="mr-2">Extension</span>
+                    <ChevronUpIcon
+                        v-if="sortData.name === 'extension' && sortData.order === 'asc'"
+                        class="h-4 w-4 text-gray-500" />
+                    <ChevronDownIcon
+                        v-else-if="sortData.name === 'extension' && sortData.order === 'desc'"
+                        class="h-4 w-4 text-gray-500" />
+                </div>
+            </TableColumnHeader>
 
                 <TableColumnHeader header="Email"
                     class="hidden px-2 py-3.5 text-left text-sm font-semibold text-gray-900 sm:table-cell" />
-                <TableColumnHeader header="Outbound Caller ID"
-                    class="whitespace-nowrap hidden px-2 py-3.5 text-left text-sm font-semibold text-gray-900 md:table-cell" />
-                <TableColumnHeader header="Description"
-                    class="hidden px-2 py-3.5 text-left text-sm font-semibold text-gray-900 lg:table-cell" />
+                <TableColumnHeader header=""
+                    class="whitespace-nowrap hidden px-2 py-3.5...text-left text-sm font-semibold text-gray-900 md:table-cell">
+                    <div class="flex items-center cursor-pointer select-none"
+                        @click="handleSortRequest('outbound_caller_id_number')">
+                        <span class="mr-2">Outbound Caller ID</span>
+                        <ChevronUpIcon
+                            v-if="sortData.name === 'outbound_caller_id_number' && sortData.order === 'asc'"
+                            class="h-4 w-4 text-gray-500" />
+                        <ChevronDownIcon
+                            v-else-if="sortData.name === 'outbound_caller_id_number' && sortData.order === 'desc'"
+                            class="h-4 w-4 text-gray-500" />
+                    </div>
+                </TableColumnHeader>
+                <TableColumnHeader header=""
+                    class="hidden px-2 py-3.5 text-left text-sm font-semibold text-gray-900 lg:table-cell">
+                    <div class="flex items-center cursor-pointer select-none"
+                        @click="handleSortRequest('description')">
+                        <span class="mr-2">Description</span>
+                        <ChevronUpIcon v-if="sortData.name === 'description' && sortData.order === 'asc'"
+                            class="h-4 w-4 text-gray-500" />
+                        <ChevronDownIcon v-else-if="sortData.name === 'description' && sortData.order === 'desc'"
+                            class="h-4 w-4 text-gray-500" />
+                    </div>
+                </TableColumnHeader>
                 <TableColumnHeader header="Services"
                     class="hidden px-2 py-3.5 text-left text-sm font-semibold text-gray-900 lg:table-cell" />
                 <TableColumnHeader header="" class="px-2 py-3.5 text-right text-sm font-semibold text-gray-900" />
@@ -262,17 +291,39 @@
     <UpdateExtensionForm :show="showUpdateModal" :options="itemOptions" :loading="isModalLoading"
         :header="'Update Extension - ' + (itemOptions?.item?.name_formatted ?? 'loading')"
         @close="showUpdateModal = false" @error="handleErrorResponse" @success="showNotification"
-        @refresh-data="handleSearchButtonClick" />
+        @refresh-data="refreshCurrentPage" />
 
     <CreateExtensionForm :show="showCreateModal" :options="itemOptions" :loading="isModalLoading"
         :header="'Create Extension'" @close="showCreateModal = false" @error="handleErrorResponse"
-        @success="showNotification" @open-edit-form="handleEditButtonClick" @refresh-data="handleSearchButtonClick" />
+        @success="showNotification" @open-edit-form="handleEditButtonClick" @refresh-data="refreshCurrentPage" />
 
-
-    <ConfirmationModal :show="showDeleteConfirmationModal" @close="showDeleteConfirmationModal = false"
-        @confirm="confirmDeleteAction" :header="'Confirm Deletion'" :loading="isModalLoading"
-        :text="'This action will permanently delete the selected extension(s). Are you sure you want to proceed?'"
-        :confirm-button-label="'Delete'" cancel-button-label="Cancel" />
+    <ConfirmationModal 
+        :show="showDeleteConfirmationModal" 
+        @close="showDeleteConfirmationModal = false"
+        @confirm="confirmDeleteAction" 
+        :header="'Confirm Deletion'" 
+        :loading="isModalLoading"
+        :confirm-button-label="'Delete'" 
+        cancel-button-label="Cancel" 
+    >
+        <div>
+            <p class="text-sm text-gray-500 mb-5">
+                This action will permanently delete the selected extension(s). Are you sure you want to proceed?
+            </p>
+            
+            <div class="flex items-center bg-gray-50 p-3 rounded-md border border-gray-200">
+                <input 
+                    id="retain_voicemail" 
+                    v-model="retainVoicemail" 
+                    type="checkbox" 
+                    class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                >
+                <label for="retain_voicemail" class="ml-3 block text-sm font-medium text-gray-700 cursor-pointer">
+                    Retain voicemail (convert to team inbox)
+                </label>
+            </div>
+        </div>
+    </ConfirmationModal>
 
     <Notification :show="notificationShow" :type="notificationType" :messages="notificationMessages"
         @update:show="hideNotification" />
@@ -292,7 +343,7 @@ import Paginator from "./components/general/Paginator.vue";
 import ConfirmationModal from "./components/modal/ConfirmationModal.vue";
 import Loading from "./components/general/Loading.vue";
 import { registerLicense } from '@syncfusion/ej2-base';
-import { MagnifyingGlassIcon, TrashIcon, PencilSquareIcon } from "@heroicons/vue/24/solid";
+import { MagnifyingGlassIcon, TrashIcon, PencilSquareIcon, ChevronUpIcon, ChevronDownIcon } from "@heroicons/vue/24/solid";
 import { TooltipComponent as EjsTooltip } from "@syncfusion/ej2-vue-popups";
 import AdvancedActionButton from "./components/general/AdvancedActionButton.vue";
 import MainLayout from "../Layouts/MainLayout.vue";
@@ -308,6 +359,7 @@ import { DocumentArrowUpIcon, DocumentArrowDownIcon, DevicePhoneMobileIcon } fro
 const page = usePage()
 const loading = ref(false)
 const isModalLoading = ref(false)
+const currentPage = ref(1)
 const selectAll = ref(false);
 const selectedItems = ref([]);
 const selectPageItems = ref(false);
@@ -347,6 +399,11 @@ const data = ref({
 
 const filterData = ref({
     search: null,
+});
+
+const sortData = ref({
+    name: 'extension',
+    order: 'asc',
 });
 
 const itemOptions = ref({})
@@ -454,7 +511,7 @@ const uploadFile = (file) => {
         .then((response) => {
             showNotification('success', response.data.messages);
             handleModalClose();
-            handleSearchButtonClick();
+            refreshCurrentPage();
         })
         .catch((error) => {
             handleClearSelection();
@@ -519,40 +576,47 @@ const handleEditButtonClick = (itemUuid) => {
     getItemOptions(itemUuid);
 }
 
+const retainVoicemail = ref(false);
+
 const handleSingleItemDeleteRequest = (uuid) => {
+    retainVoicemail.value = false;
     showDeleteConfirmationModal.value = true;
     confirmDeleteAction.value = () => executeBulkDelete([uuid]);
 };
 
 const executeBulkDelete = (items = selectedItems.value) => {
-    isModalLoading.value = true
-    axios.post(props.routes.bulk_delete, { items })
-        .then((response) => {
-            showNotification('success', response.data.messages);
-            handleSearchButtonClick();
-        })
-        .catch((error) => {
-            handleErrorResponse(error);
-        })
-        .finally(() => {
-            handleModalClose();
-            isModalLoading.value = false
-        })
-}
+    isModalLoading.value = true;
+    axios.post(props.routes.bulk_delete, { 
+        items,
+        retain_voicemail: retainVoicemail.value 
+    })
+    .then((response) => {
+        showNotification('success', response.data.messages);
+        refreshCurrentPage();
+        handleClearSelection();
+    })
+    .catch((error) => {
+        handleErrorResponse(error);
+    })
+    .finally(() => {
+        handleModalClose();
+        isModalLoading.value = false;
+    });
+};
 
 const handleBulkActionRequest = (action) => {
     if (action === 'bulk_delete') {
+        retainVoicemail.value = false;
         showDeleteConfirmationModal.value = true;
         confirmDeleteAction.value = () => executeBulkDelete();
     }
     if (action === 'bulk_update') {
         formErrors.value = [];
         getItemOptions();
-        loadingModal.value = true
+        loadingModal.value = true;
         bulkUpdateModalTrigger.value = true;
     }
-
-}
+};
 
 const handleAdvancedActionRequest = (action, extension_uuid) => {
 
@@ -563,7 +627,7 @@ const handleAdvancedActionRequest = (action, extension_uuid) => {
         axios.post(url, { uuid: extension_uuid })
             .then((response) => {
                 showNotification('success', response.data.messages);
-                handleSearchButtonClick();
+                refreshCurrentPage();
             })
             .catch((error) => {
                 handleErrorResponse(error);
@@ -631,18 +695,38 @@ const handleSelectAll = () => {
 
 };
 
+const handleSortRequest = (column) => {
+    if (sortData.value.name === column) {
+        sortData.value.order = sortData.value.order === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortData.value.name = column;
+        sortData.value.order = 'asc';
+    }
+
+    getData();
+};
 
 const getData = (page = 1) => {
     loading.value = true;
+    currentPage.value = Number(page) || 1;
+
+     let sort = sortData.value.name;
+
+    if (sortData.value.order === 'desc') {
+        sort = `-${sort}`;
+    }
+
 
     axios.get(props.routes.data_route, {
         params: {
             filter: filterData.value,
-            page,
+            page: currentPage.value,
+            sort: sort,
         }
     })
         .then((response) => {
             data.value = response.data;
+            currentPage.value = response.data.current_page ?? currentPage.value;
             // console.log(data.value);
 
         }).catch((error) => {
@@ -654,13 +738,17 @@ const getData = (page = 1) => {
 }
 
 const handleSearchButtonClick = () => {
-    getData()
+    getData(1)
+};
+
+const refreshCurrentPage = () => {
+    getData(currentPage.value)
 };
 
 const handleFiltersReset = () => {
     filterData.value.search = null;
     // After resetting the filters, call handleSearchButtonClick to perform the search with the updated filters
-    handleSearchButtonClick();
+    getData(1);
 }
 
 

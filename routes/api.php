@@ -9,26 +9,32 @@ use App\Http\Controllers\BusinessHoursController;
 use App\Http\Controllers\CallTranscriptionController;
 use App\Http\Controllers\CdrsController;
 use App\Http\Controllers\CharPmsWebhookController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DeviceCloudProvisioningController;
 use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\DomainGroupsController;
 use App\Http\Controllers\EmailLogsController;
+use App\Http\Controllers\EmailQueueController;
 use App\Http\Controllers\ExtensionsController;
 use App\Http\Controllers\ExtensionStatisticsController;
 use App\Http\Controllers\FaxesController;
 use App\Http\Controllers\FaxInboxController;
 use App\Http\Controllers\FaxLogController;
 use App\Http\Controllers\FaxSentController;
+use App\Http\Controllers\GreetingsController;
 use App\Http\Controllers\GroupsController;
 use App\Http\Controllers\HotelHousekeepingDefinitionController;
 use App\Http\Controllers\HotelRoomController;
 use App\Http\Controllers\HotelRoomStatusController;
 use App\Http\Controllers\InboundWebhooksController;
+use App\Http\Controllers\MessageController;
 use App\Http\Controllers\MessageSettingsController;
+use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PaymentGatewayController;
 use App\Http\Controllers\PhoneNumbersController;
 use App\Http\Controllers\RingGroupsController;
+use App\Http\Controllers\SpeedDialController;
 use App\Http\Controllers\SystemSettingsController;
 use App\Http\Controllers\TokenController;
 use App\Http\Controllers\UserLogsController;
@@ -66,7 +72,7 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
 
     // Email logs
     Route::resource('/email-logs', EmailLogsController::class);
-    // Route::post('/email-logs/item-options', [HotelRoomController::class, 'getItemOptions'])->name('hotel-rooms.item.options');
+    Route::post('/email-logs/retry', [EmailLogsController::class, 'retry'])->name('email-logs.retry');
 
     // Inbound Webhooks
     Route::resource('/inbound-webhooks', InboundWebhooksController::class);
@@ -103,7 +109,29 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     Route::post('ring-groups/item-options', [RingGroupsController::class, 'getItemOptions'])->name('ring-groups.item.options');
     Route::post('ring-groups/bulk-delete', [RingGroupsController::class, 'bulkDelete'])->name('ring-groups.bulk.delete');
     Route::post('ring-groups/select-all', [RingGroupsController::class, 'selectAll'])->name('ring-groups.select.all');
+    Route::post('ring-groups/duplicate', [RingGroupsController::class, 'duplicate'])->name('ring-groups.duplicate');
+    Route::post('ring-groups/{ring_group}/get-greeting', [RingGroupsController::class, 'getGreeting'])->name('ring-groups.getGreeting');
+    Route::post('ring-groups/{ring_group}/upload-greeting', [RingGroupsController::class, 'uploadGreeting'])->name('ring-groups.uploadGreeting');
+    Route::post('ring-groups/{ring_group}/delete-greeting', [RingGroupsController::class, 'deleteGreeting'])->name('ring-groups.deleteGreeting');
 
+    // Ring Group AI Text-to-Speech & File Serving
+    Route::post('ring-groups/{ring_group}/text-to-speech', [RingGroupsController::class, 'textToSpeech'])->name('ring-groups.textToSpeech');
+    Route::post('ring-groups/apply-greeting', [RingGroupsController::class, 'applyGreetingFile'])->name('ring-groups.applyGreeting');
+    // Route::get('ring-groups/serve-greeting/{domain}/{file}', [RingGroupsController::class, 'serveGreetingFile'])->name('ring-groups.serveGreeting');
+
+    // Greetings
+    Route::get('greetings', [GreetingsController::class, 'greetings'])->name('greetings.greetings');
+    Route::post('/greetings/url', [GreetingsController::class, 'getGreetingUrl'])->name('greeting.url');
+    Route::get('/greetings/serve/{file_name}', [GreetingsController::class, 'serveGreetingFile'])->name('greeting.file.serve');
+    Route::post('/greetings/text-to-speech', [GreetingsController::class, 'textToSpeech'])->name('greetings.textToSpeech');
+    Route::post('/greetings/apply', [GreetingsController::class, 'applyAIGreetingFile'])->name('greeting.file.apply');
+    Route::post('greetings/delete-greeting', [GreetingsController::class, 'deleteGreetingFile'])->name('greetings.file.delete');
+    Route::post('greetings/update-greeting', [GreetingsController::class, 'updateGreetingFile'])->name('greetings.file.update');
+    Route::post('greetings/upload-greeting', [GreetingsController::class, 'uploadGreeting'])->name('greetings.file.upload');
+    Route::post('/ivr/message/url', [GreetingsController::class, 'getIvrMessageUrl'])->name('ivr.message.url');
+    Route::get('/ivr/message/serve/{file_name}', [GreetingsController::class, 'serveIvrMessageFile'])
+        ->name('ivr.message.file.serve')
+        ->where('file_name', '(.*)');
 
     // Business Hours
     Route::post('business-hours', [BusinessHoursController::class, 'store'])->name('business-hours.store');
@@ -168,12 +196,13 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     Route::post('/voicemails/{voicemail}/text-to-speech', [VoicemailController::class, 'textToSpeech'])->name('voicemails.textToSpeech');
     Route::post('/voicemails/{voicemail}/text-to-speech-for-name', [VoicemailController::class, 'textToSpeechForName'])->name('voicemails.textToSpeechForName');
     Route::get('/voicemail/{domain}/{voicemail_id}/{file}', [VoicemailController::class, 'serveVoicemailFile'])->name('voicemail.file.serve');
+    Route::get('/voicemails/{voicemail}/greetings', [VoicemailController::class, 'getGreetings'])->name('voicemails.getGreetings');
     Route::post('/voicemail/apply-greeting', [VoicemailController::class, 'applyVoicemailFile'])->name('voicemail.file.apply');
     Route::post('/voicemail/{domain}/{voicemail}/{file}/name', [VoicemailController::class, 'applyVoicemailFileForName'])->name('voicemail.file.name.apply');
     Route::post('/voicemail/{voicemail}/greeting', [VoicemailController::class, 'getVoicemailGreeting'])->name('voicemail.greeting');
     Route::post('voicemails/{voicemail}/delete-greeting', [VoicemailController::class, 'deleteGreeting'])->name('voicemails.deleteGreeting');
     Route::post('voicemails/{voicemail}/upload-greeting', [VoicemailController::class, 'uploadGreeting'])->name('voicemails.uploadGreeting');
-    Route::post('/voicemail/{voicemail}/recorde-name', [VoicemailController::class, 'getRecordedName'])->name('voicemail.recorded_name');
+    Route::post('/voicemail/{voicemail}/recorded-name', [VoicemailController::class, 'getRecordedName'])->name('voicemail.recorded_name');
     Route::post('voicemails/{voicemail}/delete-recorded-name', [VoicemailController::class, 'deleteRecordedName'])->name('voicemails.deleteRecordedName');
     Route::post('voicemails/{voicemail}/upload-recorded-name', [VoicemailController::class, 'uploadRecordedName'])->name('voicemails.uploadRecordedName');
 
@@ -189,6 +218,20 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     Route::delete('/voicemails/messages/{message}', [VoicemailMessagesController::class, 'destroy'])->name('voicemails.messages.destroy');
     Route::get('/voicemails/messages/{message}/download', [VoicemailMessagesController::class, 'downloadVoicemailMessage'])->name('downloadVoicemailMessage');
     Route::get('/voicemails/messages/{message}/delete', [VoicemailMessagesController::class, 'deleteVoicemailMessage'])->name('deleteVoicemailMessage');
+
+    // Virtual Receptionist
+    Route::post('virtual-receptionists', [VirtualReceptionistController::class, 'store'])->name('virtual-receptionists.store');
+    Route::put('virtual-receptionists/{virtual_receptionist}', [VirtualReceptionistController::class, 'update'])->name('virtual-receptionists.update');
+    Route::get('virtual-receptionists/data', [VirtualReceptionistController::class, 'getData'])->name('virtual-receptionists.data');
+    Route::post('virtual-receptionists/item-options', [VirtualReceptionistController::class, 'getItemOptions'])->name('virtual-receptionists.item.options');
+    Route::post('/virtual-receptionists/bulk-delete', [VirtualReceptionistController::class, 'bulkDelete'])->name('virtual-receptionists.bulk.delete');
+    Route::post('/virtual-receptionists/select-all', [VirtualReceptionistController::class, 'selectAll'])->name('virtual-receptionists.select.all');
+    Route::post('/virtual-receptionists/{virtual_receptionist}/greeting', [VirtualReceptionistController::class, 'getVirtualReceptionistGreeting'])->name('virtual-receptionist.greeting');
+    Route::post('/virtual-receptionists/greeting/apply', [VirtualReceptionistController::class, 'applyGreeting'])->name('virtual-receptionist.greeting.apply');
+    Route::post('/virtual-receptionists/key/create', [VirtualReceptionistController::class, 'createKey'])->name('virtual-receptionist.key.create');
+    Route::put('/virtual-receptionists/key/update', [VirtualReceptionistController::class, 'updateKey'])->name('virtual-receptionist.key.update');
+    Route::post('/virtual-receptionists/key/delete', [VirtualReceptionistController::class, 'destroyKey'])->name('virtual-receptionist.key.destroy');
+    Route::get('/virtual-receptionists/greetings', [VirtualReceptionistController::class, 'getGreetings'])->name('virtual-receptionists.getGreetings');
 
     // Inbound Webhooks
     Route::get('/inbound-webhooks/data', [InboundWebhooksController::class, 'getData'])->name('inbound-webhooks.data');
@@ -245,12 +288,16 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     Route::delete('/faxes/deleteReceivedFax/{id}', [FaxesController::class, 'deleteReceivedFax'])->name('faxes.file.deleteReceivedFax');
     Route::delete('/faxes/deleteFaxLog/{id}', [FaxesController::class, 'deleteFaxLog'])->name('faxes.file.deleteFaxLog');
     Route::get('/fax/inbox/{file}/download', [FaxInboxController::class, 'download'])->name('fax-inbox.fax.download');
+    Route::get('/fax/inbox/{file}/preview', [FaxInboxController::class, 'preview'])->name('fax-inbox.preview');
     Route::post('/fax/inbox/bulk-delete', [FaxInboxController::class, 'bulkDelete'])->name('fax-inbox.bulk.delete');
     Route::post('/fax/inbox/select-all', [FaxInboxController::class, 'selectAll'])->name('fax-inbox.select.all');
+    Route::get('/fax/inbox/stats', [FaxInboxController::class, 'getStats'])->name('fax-inbox.stats');
     Route::post('/faxes/send', [FaxesController::class, 'sendFax'])->name('faxes.new.fax.send');
     Route::get('/fax/inbox/data', [FaxInboxController::class, 'getData'])->name('fax-inbox.data');
     Route::get('/fax/sent/data', [FaxSentController::class, 'getData'])->name('fax-sent.data');
+    Route::get('/fax/sent/stats', [FaxSentController::class, 'getStats'])->name('fax-sent.stats');
     Route::get('/fax/sent/{file}/download', [FaxSentController::class, 'download'])->name('fax-sent.fax.download');
+    Route::get('/fax/sent/{file}/preview', [FaxSentController::class, 'preview'])->name('fax-sent.preview');
     Route::post('/fax/sent/bulk-delete', [FaxSentController::class, 'bulkDelete'])->name('fax-sent.bulk.delete');
     Route::post('/fax/sent/select-all', [FaxSentController::class, 'selectAll'])->name('fax-sent.select.all');
     Route::get('/fax/log/data', [FaxLogController::class, 'getData'])->name('fax-logs.data');
@@ -268,6 +315,39 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
 
     // Account Settings
     Route::put('account-settings/update', [AccountSettingsController::class, 'update'])->name('account-settings.update');
+
+    // Contacts
+    Route::post('contacts', [ContactController::class, 'store'])->name('contacts.store');
+    Route::get('contacts/{phoneNumber}', [ContactController::class, 'show'])->name('contacts.show');
+    Route::delete('/contacts/{contact}', [ContactController::class, 'destroy'])->name('contacts.destroy');
+
+    // Route::post('/contacts/item-options', [ContactsController::class, 'getItemOptions'])->name('contacts.item.options');
+    // Route::post('/contacts/bulk-delete', [ContactsController::class, 'bulkDelete'])->name('contacts.bulk.delete');
+    // Route::post('/contacts/select-all', [ContactsController::class, 'selectAll'])->name('contacts.select.all');
+    // Route::post('/contacts/import', [ContactsController::class, 'import'])->name('contacts.import');
+    // Route::get('/contacts/template/download', [ContactsController::class, 'downloadTemplate'])->name('contacts.download.template');
+    // Route::get('/contacts-export', [ContactsController::class, 'export'])->name('contacts.export');
+
+    // Email Queue
+    Route::get('/emailqueue/data', [EmailQueueController::class, 'getData'])->name('emailqueue.data');
+    Route::post('/emailqueue/select-all', [EmailQueueController::class, 'selectAll'])->name('emailqueue.select.all');
+    Route::post('/emailqueue/bulk-delete', [EmailQueueController::class, 'bulkDelete'])->name('emailqueue.bulk.delete');
+    Route::post('/emailqueue/update-status', [EmailQueueController::class, 'updateStatus'])->name('emailqueue.update-status');
+
+    //Organizations
+    Route::get('/organizations', [OrganizationController::class, 'index'])->name('organizations.index');
+    Route::post('/organizations', [OrganizationController::class, 'store'])->name('organizations.store');
+
+    // Speed Dial
+    Route::post('speed-dial', [SpeedDialController::class, 'store'])->name('speed-dial.store');
+    Route::put('speed-dial/{speed_dial}', [SpeedDialController::class, 'update'])->name('speed-dial.update');
+    Route::get('/speed-dial/data', [SpeedDialController::class, 'getData'])->name('speed-dial.data');
+    Route::post('/speed-dial/item-options', [SpeedDialController::class, 'getItemOptions'])->name('speed-dial.item.options');
+    Route::post('/speed-dial/bulk-delete', [SpeedDialController::class, 'bulkDelete'])->name('speed-dial.bulk.delete');
+    Route::post('/speed-dial/select-all', [SpeedDialController::class, 'selectAll'])->name('speed-dial.select.all');
+    Route::post('/speed-dial/import', [SpeedDialController::class, 'import'])->name('speed-dial.import');
+    Route::get('/speed-dial/template/download', [SpeedDialController::class, 'downloadTemplate'])->name('speed-dial.download.template');
+    Route::get('/speed-dial-export', [SpeedDialController::class, 'export'])->name('speed-dial.export');
 
     // System Settings
     Route::put('system-settings/update', [SystemSettingsController::class, 'update'])->name('system-settings.update');
@@ -288,6 +368,15 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
 
     // Virtual Receptionist
     Route::post('virtual-receptionists/duplicate', [VirtualReceptionistController::class, 'duplicate'])->name('virtual-receptionists.duplicate');
+
+    // Messages
+    Route::get('/messages/rooms', [MessageController::class, 'rooms'])->name('messages.rooms');
+    Route::get('/messages/rooms/{roomId}/messages', [MessageController::class, 'roomMessages'])->name('messages.room.messages');
+    Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
+    Route::get('/messages/logs', [MessageController::class, 'logs'])->name('messages.logs');
+    Route::get('/messages/data', [MessageController::class, 'getData'])->name('messages.data');
+    Route::post('/messages/mark-read', [MessageController::class, 'markRead'])->name('messages.mark-read');
+    Route::post('/messages/retry', [MessageController::class, 'retry'])->name('messages.retry');
 
     // Message Settings
     Route::get('/message-settings/data', [MessageSettingsController::class, 'getData'])->name('messages.settings.data');

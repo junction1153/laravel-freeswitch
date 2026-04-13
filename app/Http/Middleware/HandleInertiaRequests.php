@@ -86,12 +86,6 @@ class HandleInertiaRequests extends Middleware
         $permissions['cdrs_export'] = userCheckPermission('xml_cdr_export');
         $permissions['cdr_view_details'] = userCheckPermission('xml_cdr_details');
 
-
-        $permissions['voicemail_create'] = userCheckPermission('voicemail_add');
-        $permissions['voicemail_update'] = userCheckPermission('voicemail_edit');
-        $permissions['voicemail_destroy'] = userCheckPermission('voicemail_delete');
-        $permissions['voicemail_message_index'] = userCheckPermission('voicemail_message_view');
-
         $permissions['ring_group_create'] = userCheckPermission('ring_group_add');
         $permissions['ring_group_update'] = userCheckPermission('ring_group_edit');
         $permissions['ring_group_destroy'] = userCheckPermission('ring_group_delete');
@@ -99,10 +93,6 @@ class HandleInertiaRequests extends Middleware
         $permissions['registrations_view_global'] = userCheckPermission('registration_all');
 
         $permissions['active_calls_view_global'] = userCheckPermission('call_active_all');
-
-        $permissions['virtual_receptionist_create'] = userCheckPermission('ivr_menu_add');
-        $permissions['virtual_receptionist_update'] = userCheckPermission('ivr_menu_edit');
-        $permissions['virtual_receptionist_destroy'] = userCheckPermission('ivr_menu_delete');
 
         $permissions['wakeup_calls_list_view'] = userCheckPermission('wakeup_calls_list_view');
         $permissions['wakeup_calls_create'] = userCheckPermission('wakeup_calls_create');
@@ -127,10 +117,6 @@ class HandleInertiaRequests extends Middleware
         $permissions['group_update'] = userCheckPermission('group_edit');
         $permissions['group_destroy'] = userCheckPermission('group_delete');
         $permissions['domain_groups_view'] = userCheckPermission('domain_groups_list_view');
-
-        $permissions['user_create'] = userCheckPermission('user_add');
-        $permissions['user_update'] = userCheckPermission('user_edit');
-        $permissions['user_destroy'] = userCheckPermission('user_delete');
 
         $permissions['extension_create'] = userCheckPermission('extension_add');
         $permissions['extension_update'] = userCheckPermission('extension_edit');

@@ -21,6 +21,7 @@ use App\Http\Requests\StoreDeviceRequest;
 use App\Http\Requests\UpdateDeviceRequest;
 use App\Http\Requests\BulkUpdateDeviceRequest;
 use App\Services\DeviceCloudProvisioningService;
+use Spatie\QueryBuilder\AllowedSort;
 
 /**
  * The DeviceController class is responsible for handling device-related operations, such as listing, creating, and storing devices.
@@ -81,7 +82,7 @@ class DeviceController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
-   public function duplicate(Request $request)
+    public function duplicate(Request $request)
     {
         // 1. Validate Input
         $request->validate([
@@ -118,14 +119,14 @@ class DeviceController extends Controller
 
             // 4. Fetch Original
             $original = $this->model::where('device_uuid', $request->uuid)
-                ->with(['lines', 'settings', 'keys']) 
+                ->with(['lines', 'settings', 'keys'])
                 ->firstOrFail();
 
             // 5. Replicate Parent
             $newDevice = $original->replicate();
             $newDevice->device_uuid = Str::uuid();
             $newDevice->device_label = $original->device_label . ' (Copy)';
-            $newDevice->device_address = $cleanMac; 
+            $newDevice->device_address = $cleanMac;
 
             $newDevice->save();
 
@@ -153,7 +154,7 @@ class DeviceController extends Controller
             if ($original->keys) {
                 foreach ($original->keys as $key) {
                     $newKey = $key->replicate();
-                    $newKey->device_key_uuid = Str::uuid(); 
+                    $newKey->device_key_uuid = Str::uuid();
                     $newKey->device_uuid = $newDevice->device_uuid;
                     $newKey->save();
                 }
@@ -202,6 +203,8 @@ class DeviceController extends Controller
                 'device_description',
                 'device_provisioned_method',
                 'device_provisioned_date',
+                'device_provisioned_ip',
+                'device_provisioned_agent',
 
             ])
             // allow ?filter[username]=foo or ?filter[user_email]=bar
@@ -248,7 +251,7 @@ class DeviceController extends Controller
             ])
 
             ->with(['lines' => function ($query) use ($currentDomain) {
-                $query->select('device_line_uuid', 'line_number', 'device_uuid', 'auth_id', 'domain_uuid')
+                $query->select('device_line_uuid', 'line_number', 'device_uuid', 'auth_id', 'domain_uuid', 'external_line')
                     ->with([
                         'extension' => function ($q) use ($currentDomain) {
                             $q->select('extension_uuid', 'extension', 'effective_caller_id_name')
@@ -270,8 +273,7 @@ class DeviceController extends Controller
                 $query->select('template_uuid', 'domain_uuid', 'vendor', 'name', 'version', 'revision');
             }])
 
-            ->allowedSorts(['device_address'])
-            ->defaultSort('device_address')
+            ->allowedSorts(['device_address', 'device_description', 'device_provisioned_date'])->defaultSort('device_address')
             ->paginate($perPage);
 
         // wrap in DTO
@@ -396,9 +398,14 @@ class DeviceController extends Controller
                     $device->lines()->delete();
 
                     foreach ($inputs['device_lines'] as $index => $line) {
-                        $extension = Extensions::where('extension', $line['auth_id'])
-                            ->where('domain_uuid', $inputs['domain_uuid'])
-                            ->first();
+                        $isExternalLine = ($line['line_type_id'] ?? null) === 'externalline';
+
+                        $extension = null;
+                        if (!$isExternalLine && !empty($line['auth_id'])) {
+                            $extension = Extensions::where('extension', $line['auth_id'])
+                                ->where('domain_uuid', $inputs['domain_uuid'])
+                                ->first();
+                        }
 
                         $deviceLineData = [
                             'device_uuid' => $device->device_uuid,
@@ -409,21 +416,27 @@ class DeviceController extends Controller
                             'outbound_proxy_primary' => $line['outbound_proxy_primary'],
                             'outbound_proxy_secondary' => $line['outbound_proxy_secondary'],
                             'display_name' => $line['display_name'],
-                            'user_id' => $line['user_id'] ? $line['user_id'] : $extension->extension ?? null,
-                            'auth_id' => $line['auth_id'] ? $line['auth_id'] : $extension->extension ?? null,
-                            'password' => $line['password'] ? $line['password'] : $extension->password ?? null,
+                            'user_id' => $isExternalLine
+                                ? ($line['user_id'] ?? null)
+                                : ($extension->extension ?? ($line['user_id'] ?? null)),
+                            'auth_id' => $isExternalLine
+                                ? ($line['auth_id'] ?? null)
+                                : ($extension->extension ?? ($line['auth_id'] ?? null)),
+                            'password' => $isExternalLine
+                                ? ($line['password'] ?? null)
+                                : ($extension->password ?? null),
                             'label' => $line['display_name'],
                             'sip_port' => $line['sip_port'],
                             'sip_transport' => $line['sip_transport'],
                             'register_expires' => $line['register_expires'],
                             'shared_line' => $line['line_type_id'] == 'sharedline' ? '1' : '',
-                            'external_line' => $line['line_type_id'] === 'externalline',
+                            'external_line' => $isExternalLine,
                             'device_line_uuid' => $line['device_line_uuid'] ?? null,
                             'domain_uuid' => $device->domain_uuid,
                             'enabled' => 'true',
                         ];
 
-      //                  logger($deviceLineData);
+                        //                  logger($deviceLineData);
 
                         $deviceLines = new DeviceLines();
                         $deviceLines->fill($deviceLineData);
@@ -474,6 +487,7 @@ class DeviceController extends Controller
                     foreach ($inputs['device_keys'] as $k) {
                         $rows[] = [
                             'device_uuid' => $device->device_uuid,
+                            'key_area'    => $k['key_area'] ?? 'main',
                             'key_index'   => $k['key_index'],
                             'key_type'    => $k['key_type'] ?? null,
                             'key_value'   => $k['key_value'] ?? null,
@@ -709,7 +723,7 @@ class DeviceController extends Controller
                         // ]);
                     }])
                     ->with(['keys' => function ($query) {
-                        $query->select('device_key_uuid', 'device_uuid', 'key_index', 'key_type', 'key_value', 'key_label');
+                        $query->select('device_key_uuid', 'device_uuid', 'key_area', 'key_index', 'key_type', 'key_value', 'key_label');
                     }])
                     ->with(['profile' => function ($query) {
                         $query->select('device_profile_uuid', 'device_profile_name', 'device_profile_description');
@@ -802,20 +816,10 @@ class DeviceController extends Controller
                     ->map(function ($line) use ($deviceDto) {
                         if ($line->shared_line) {
                             $line->line_type_id = 'sharedline';
-                        } else {
-                            $vendorLineTypes = [
-                                'yealink'     => '15',
-                                'polycom'     => 'line',
-                                'grandstream' => 'line',
-                                // Add more vendors here as needed
-                            ];
-
-                            // Use the mapped value, or default to 'line'
-                            $line->line_type_id = $vendorLineTypes[$deviceDto->device_vendor] ?? 'line';
-                        }
-
-                        if ($line->external_line) {
+                        } elseif ($line->external_line) {
                             $line->line_type_id = 'externalline';
+                        } else {
+                            $line->line_type_id = 'line';
                         }
 
                         if (!$line->external_line) {
@@ -823,9 +827,6 @@ class DeviceController extends Controller
                         }
                         return $line;
                     });
-
-                // logger($lines);
-
             }
 
             $lineKeyTypes = [

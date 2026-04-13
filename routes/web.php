@@ -10,7 +10,6 @@ use App\Http\Controllers\BusinessHoursController;
 use App\Http\Controllers\CallRecordingController;
 use App\Http\Controllers\CallRoutingOptionsController;
 use App\Http\Controllers\CdrsController;
-use App\Http\Controllers\ContactsController;
 use App\Http\Controllers\CsrfTokenController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeviceCloudProvisioningController;
@@ -26,10 +25,10 @@ use App\Http\Controllers\FaxLogController;
 use App\Http\Controllers\FaxQueueController;
 use App\Http\Controllers\FaxSentController;
 use App\Http\Controllers\FirewallController;
-use App\Http\Controllers\GreetingsController;
 use App\Http\Controllers\GroupsController;
 use App\Http\Controllers\LogsController;
-use App\Http\Controllers\MessagesController;
+use App\Http\Controllers\MessageController;
+use App\Http\Controllers\MessageMediaController;
 use App\Http\Controllers\MessageSettingsController;
 use App\Http\Controllers\PhoneNumbersController;
 use App\Http\Controllers\PolycomLogController;
@@ -41,6 +40,7 @@ use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\RingGroupsController;
 use App\Http\Controllers\SansayActiveCallsController;
 use App\Http\Controllers\SansayRegistrationsController;
+use App\Http\Controllers\SpeedDialController;
 use App\Http\Controllers\SystemSettingsController;
 use App\Http\Controllers\UserLogsController;
 use App\Http\Controllers\UsersController;
@@ -62,8 +62,8 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/extensions/callerid', [ExtensionsController::class, 'callerID'])->withoutMiddleware(['auth', 'web'])->name('callerID');
-Route::post('/extensions/{extension}/callerid/update/', [ExtensionsController::class, 'updateCallerID'])->withoutMiddleware(['auth', 'web'])->name('updateCallerID');
+Route::get('/extensions/callerid', [ExtensionsController::class, 'callerID'])->withoutMiddleware(['auth'])->name('callerID');
+Route::post('/extensions/{extension}/callerid/update/', [ExtensionsController::class, 'updateCallerID'])->withoutMiddleware(['auth'])->name('updateCallerID');
 
 //Polycom log handling
 Route::put('/polycom/log/{name}', [PolycomLogController::class, 'store'])->withoutMiddleware(['auth', 'web'])->name('log.store');
@@ -78,6 +78,9 @@ Route::webhooks('webhook/sinch/sms', 'sinch_messaging');
 Route::webhooks('webhook/bandwidth/sms', 'bandwidth_messaging');
 Route::webhooks('webhook/telnyx/sms', 'telnyx_messaging');
 Route::webhooks('webhook/clicksend/sms', 'clicksend_messaging');
+Route::webhooks('webhook/apidaze/sms', 'apidaze_messaging');
+Route::webhooks('webhook/bulkvs/sms', 'bulkvs_messaging');
+Route::webhooks('webhook/voipms/sms', 'voipms_messaging');
 Route::webhooks('/sms/ringotelwebhook', 'ringotel_messaging');
 Route::webhooks('/webhook/freeswitch', 'freeswitch');
 Route::webhooks('/webhook/stripe', 'stripe');
@@ -89,6 +92,12 @@ Route::put('/email-challenge', [App\Http\Controllers\Auth\EmailChallengeControll
     ->middleware('throttle:2,1')
     ->name('email-challenge.new-code');
 Route::post('/email-challenge', [App\Http\Controllers\Auth\EmailChallengeController::class, 'store']);
+
+// Message media URL for MMS
+Route::get(
+    '/messages/media/{message_uuid}/{index}/{file_name?}',
+    [MessageMediaController::class, 'show']
+)->name('messages.media.show');
 
 // Csrf token
 Route::get('/csrf-token/refresh', [CsrfTokenController::class, 'store']);
@@ -163,7 +172,6 @@ Route::group(['middleware' => 'auth'], function () {
 
     // Domain Groups
     Route::get('domain-groups', [DomainGroupsController::class, 'index'])->name('domain-groups.index');
-    Route::post('ring-groups/duplicate', [RingGroupsController::class, 'duplicate'])->name('ring-groups.duplicate');
 
     // Ring Groups
     Route::get('ring-groups', [RingGroupsController::class, 'index'])->name('ring-groups.index');
@@ -181,15 +189,7 @@ Route::group(['middleware' => 'auth'], function () {
     Route::get('/voicemails/{voicemail}/messages/', [VoicemailMessagesController::class, 'index'])->name('voicemails.messages.index');
 
     // Virtual Receptionist
-    Route::resource('virtual-receptionists', VirtualReceptionistController::class);
-    Route::post('virtual-receptionists/item-options', [VirtualReceptionistController::class, 'getItemOptions'])->name('virtual-receptionists.item.options');
-    Route::post('/virtual-receptionists/bulk-delete', [VirtualReceptionistController::class, 'bulkDelete'])->name('virtual-receptionists.bulk.delete');
-    Route::post('/virtual-receptionists/select-all', [VirtualReceptionistController::class, 'selectAll'])->name('virtual-receptionists.select.all');
-    Route::post('/virtual-receptionists/{virtual_receptionist}/greeting', [VirtualReceptionistController::class, 'getVirtualReceptionistGreeting'])->name('virtual-receptionist.greeting');
-    Route::post('/virtual-receptionists/greeting/apply', [VirtualReceptionistController::class, 'applyGreeting'])->name('virtual-receptionist.greeting.apply');
-    Route::post('/virtual-receptionists/key/create', [VirtualReceptionistController::class, 'createKey'])->name('virtual-receptionist.key.create');
-    Route::put('/virtual-receptionists/key/update', [VirtualReceptionistController::class, 'updateKey'])->name('virtual-receptionist.key.update');
-    Route::post('/virtual-receptionists/key/delete', [VirtualReceptionistController::class, 'destroyKey'])->name('virtual-receptionist.key.destroy');
+    Route::get('virtual-receptionists', [VirtualReceptionistController::class, 'index'])->name('virtual-receptionists.index');
 
     // Account settings
     Route::get('account-settings', [AccountSettingsController::class, 'index'])->name('account-settings.index');
@@ -199,19 +199,6 @@ Route::group(['middleware' => 'auth'], function () {
 
     // System Settings
     Route::get('system-settings', [SystemSettingsController::class, 'index'])->name('system-settings.index');
-
-    // Greetings
-    Route::post('/greetings/url', [GreetingsController::class, 'getGreetingUrl'])->name('greeting.url');
-    Route::get('/greetings/serve/{file_name}', [GreetingsController::class, 'serveGreetingFile'])->name('greeting.file.serve');
-    Route::post('/greetings/text-to-speech', [GreetingsController::class, 'textToSpeech'])->name('greetings.textToSpeech');
-    Route::post('/greetings/apply', [GreetingsController::class, 'applyAIGreetingFile'])->name('greeting.file.apply');
-    Route::post('greetings/delete-greeting', [GreetingsController::class, 'deleteGreetingFile'])->name('greetings.file.delete');
-    Route::post('greetings/update-greeting', [GreetingsController::class, 'updateGreetingFile'])->name('greetings.file.update');
-    Route::post('greetings/upload-greeting', [GreetingsController::class, 'uploadGreeting'])->name('greetings.file.upload');
-    Route::post('/ivr/message/url', [GreetingsController::class, 'getIvrMessageUrl'])->name('ivr.message.url');
-    Route::get('/ivr/message/serve/{file_name}', [GreetingsController::class, 'serveIvrMessageFile'])
-        ->name('ivr.message.file.serve')
-        ->where('file_name', '(.*)');
 
     // Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
@@ -280,26 +267,18 @@ Route::group(['middleware' => 'auth'], function () {
     Route::post('/apps/users/{extension}/status', [AppsController::class, 'SetStatus'])->name('appsSetStatus');
     Route::get('/apps/email', [AppsController::class, 'emailUser'])->name('emailUser');
 
-    // Contacts
-    Route::resource('contacts', ContactsController::class);
-    Route::post('/contacts/item-options', [ContactsController::class, 'getItemOptions'])->name('contacts.item.options');
-    Route::post('/contacts/bulk-delete', [ContactsController::class, 'bulkDelete'])->name('contacts.bulk.delete');
-    Route::post('/contacts/select-all', [ContactsController::class, 'selectAll'])->name('contacts.select.all');
-    Route::post('/contacts/import', [ContactsController::class, 'import'])->name('contacts.import');
-    Route::get('/contacts/template/download', [ContactsController::class, 'downloadTemplate'])->name('contacts.download.template');
-    Route::get('/contacts-export', [ContactsController::class, 'export'])->name('contacts.export');
+    // Speed Dial
+    Route::get('speed-dial', [SpeedDialController::class, 'index'])->name('speed-dial.index');
 
     // SMS for testing
     // Route::get('/sms/ringotelwebhook', [SmsWebhookController::class,"messageFromRingotel"]);
 
     // Messages
     // Route::resource('messages', MessagesController::class);
-    Route::get('/messages', [MessagesController::class, 'index'])->name('messages.index');
-    Route::post('/messages/store', [MessagesController::class, 'store'])->name('messages.store');
-    Route::post('/messages/retry', [MessagesController::class, 'retry'])->name('messages.retry');
-    Route::post('/messages/bulk-update', [DeviceController::class, 'bulkUpdate'])->name('messages.bulk.update');
-    Route::post('/messages/bulk-delete', [DeviceController::class, 'bulkDelete'])->name('messages.bulk.delete');
-    Route::post('/messages/select-all', [DeviceController::class, 'selectAll'])->name('messages.select.all');
+    Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
+    // Route::post('/messages/bulk-update', [DeviceController::class, 'bulkUpdate'])->name('messages.bulk.update');
+    // Route::post('/messages/bulk-delete', [DeviceController::class, 'bulkDelete'])->name('messages.bulk.delete');
+    // Route::post('/messages/select-all', [DeviceController::class, 'selectAll'])->name('messages.select.all');
 
 
 
@@ -316,8 +295,7 @@ Route::group(['middleware' => 'auth'], function () {
 
 
     // Email Queues
-    Route::get('emailqueue', [EmailQueueController::class, 'index'])->name('emailqueue.list');
-    Route::delete('emailqueue/{id}', [EmailQueueController::class, 'delete'])->name('emailqueue.destroy');
+    Route::get('emailqueue', [EmailQueueController::class, 'index'])->name('emailqueue.index');
     Route::get('emailqueue/{emailQueue}/{status?}', [EmailQueueController::class, 'updateStatus'])->name('emailqueue.updateStatus');
 
     // Fax Queue

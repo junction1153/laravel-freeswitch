@@ -224,13 +224,13 @@ const handleFiltersReset = () => {
 }
 
 const renderRequestedPage = (url) => {
-    loading.value = true;
+    isDataLoading.value = true;
     // Extract the page number from the url, e.g. "?page=3"
     const urlObj = new URL(url, window.location.origin);
     const pageParam = urlObj.searchParams.get("page") ?? 1;
 
     // Now call getData with the page number
-    getData(pageParam);
+    fetchData(pageParam);
 };
 
 

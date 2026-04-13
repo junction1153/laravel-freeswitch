@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
+use Illuminate\Support\Facades\File;
 
 class FSPBXInitialDBSeed extends Command
 {
@@ -97,6 +98,9 @@ class FSPBXInitialDBSeed extends Command
         // Step 6: Run Upgrade Defaults
         $this->runUpgradeDefaults();
 
+        // Step 6a: configure Reverb
+        $this->configureReverb();
+
         // Step 7: Run Additional Laravel Commands
         $this->info("Caching configuration...");
         Artisan::call('config:cache');
@@ -146,6 +150,9 @@ class FSPBXInitialDBSeed extends Command
         // Step 17: Restart FreeSWITCH
         $this->restartFreeSwitch();
 
+        // Step 17a: Restart Supervisor
+        $this->restartSupervisorJobs();
+
         DefaultSettings::where('default_setting_category', 'switch')->delete();
         $this->runUpgradeDefaults();
         $this->runUpgradeDomains();
@@ -164,6 +171,128 @@ class FSPBXInitialDBSeed extends Command
         $this->displayCompletionMessage($username, $password);
 
         return 0;
+    }
+
+    private function configureReverb()
+    {
+        $envPath = '/var/www/fspbx/.env';
+        if (!File::exists($envPath)) {
+            $this->info("WARNING: .env not found at {$envPath}. Skipping env setup.");
+            return;
+        }
+
+        $env = File::get($envPath);
+
+        // Generate credentials once if missing
+        $appId     = $this->getEnvValue($env, 'REVERB_APP_ID') ?: (string) random_int(100000, 999999);
+        $appKey    = $this->getEnvValue($env, 'REVERB_APP_KEY') ?: Str::lower(Str::random(20));
+        $appSecret = $this->getEnvValue($env, 'REVERB_APP_SECRET') ?: Str::lower(Str::random(32));
+
+        $updates = [
+            'BROADCAST_CONNECTION' => 'reverb',
+            'REVERB_APP_ID'        => $appId,
+            'REVERB_APP_KEY'       => $appKey,
+            'REVERB_APP_SECRET'    => $appSecret,
+            'REVERB_SERVER_HOST'   => '127.0.0.1',
+            'REVERB_SERVER_PORT'   => '8095',
+
+            'REVERB_HOST'          => '127.0.0.1',
+            'REVERB_PORT'          => '8095',
+            'REVERB_SCHEME'        => 'http',
+            'VITE_REVERB_APP_KEY'  => $appKey,
+        ];
+
+        $env = $this->applyEnvUpdates($env, $updates);
+        File::put($envPath, $env);
+
+        echo "Updated .env with Reverb settings.\n";
+    }
+
+    private function applyEnvUpdates(string $env, array $updates): string
+    {
+        $blockHeader = "\n\n### FS PBX - Laravel Reverb\n";
+        $append = '';
+
+        foreach ($updates as $key => $value) {
+
+            // 1) If commented version exists, replace it (first occurrence only)
+            $env = preg_replace(
+                '/^\s*#\s*' . preg_quote($key, '/') . '\s*=.*$/m',
+                $key . '=' . $value,
+                $env,
+                1
+            );
+
+            // 2) If key exists, set the FIRST occurrence to our value
+            if (preg_match('/^\s*' . preg_quote($key, '/') . '\s*=/m', $env)) {
+                $env = preg_replace(
+                    '/^\s*' . preg_quote($key, '/') . '\s*=.*$/m',
+                    $key . '=' . $value,
+                    $env,
+                    1
+                );
+
+                // 3) Remove any later duplicates of the same key
+                $env = $this->removeDuplicateEnvKeys($env, $key);
+
+                continue;
+            }
+
+            // 4) Otherwise, append it
+            $append .= $key . '=' . $value . "\n";
+        }
+
+        if ($append !== '') {
+            $env = rtrim($env) . $blockHeader . $append;
+        }
+
+        return rtrim($env) . "\n";
+    }
+
+    private function removeDuplicateEnvKeys(string $env, string $key): string
+    {
+        $lines = preg_split("/\r\n|\n|\r/", $env);
+        $seen = false;
+        $result = [];
+
+        foreach ($lines as $line) {
+            if (preg_match('/^(?:\s*#\s*)?' . preg_quote($key, '/') . '\s*=/', $line)) {
+                if ($seen) {
+                    continue;
+                }
+
+                $seen = true;
+            }
+
+            $result[] = $line;
+        }
+
+        return implode("\n", $result);
+    }
+
+
+    private function getEnvValue(string $env, string $key): ?string
+    {
+        if (preg_match('/^' . preg_quote($key, '/') . '=(.*)$/m', $env, $matches)) {
+            return trim($matches[1], "\"'");
+        }
+
+        return null;
+    }
+
+    private function restartSupervisorJobs()
+    {
+        $this->info("Restarting Supervisor processes...");
+
+        $process = new Process(['/usr/bin/supervisorctl', 'restart', 'all']);
+        $process->setTimeout(300);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            throw new ProcessFailedException($process);
+        }
+
+        $this->info("Supervisor processes restarted successfully.");
     }
 
     private function runUpgradeSchema()

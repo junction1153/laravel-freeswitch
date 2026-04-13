@@ -66,8 +66,12 @@
                         class="h-4 w-4 rounded border-gray-300 text-indigo-600">
                     <!-- <BulkActionButton :actions="bulkActions" @bulk-action="handleBulkActionRequest"
                         :has-selected-items="selectedItems.length > 0" /> -->
-                    <span class="pl-4">MAC Address</span>
-                </TableColumnHeader>
+                    <div class="pl-4 flex items-center cursor-pointer select-none"
+                        @click="handleSortRequest('device_address')">
+                        <span class="mr-2">MAC Address</span>
+                        <ChevronUpIcon v-if="sortData.name === 'device_address' && sortData.order === 'asc'" class="h-4 w-4 text-gray-500" />
+                        <ChevronDownIcon v-else-if="sortData.name === 'device_address' && sortData.order === 'desc'" class="h-4 w-4 text-gray-500" />
+                    </div>                </TableColumnHeader>
                 <TableColumnHeader v-if="filterData.showGlobal" header="Domain"
                     class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900" />
 
@@ -76,11 +80,21 @@
                 <TableColumnHeader header="Profile" class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900" />
                 <TableColumnHeader v-if="!filterData.showGlobal" header="Assigned extension"
                     class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900" />
-                <TableColumnHeader header="Description"
-                    class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900" />
-                <TableColumnHeader header="Last Contact"
-                    class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900" />
-                <TableColumnHeader header="Cloud" class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900" />
+                <TableColumnHeader class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    <div class="flex items-center cursor-pointer select-none" @click="handleSortRequest('device_description')">
+                        <span class="mr-2">Description</span>
+                        <ChevronUpIcon v-if="sortData.name === 'device_description' && sortData.order === 'asc'" class="h-4 w-4 text-gray-500" />
+                        <ChevronDownIcon v-else-if="sortData.name === 'device_description' && sortData.order === 'desc'" class="h-4 w-4 text-gray-500" />
+                    </div>
+                </TableColumnHeader>
+                <TableColumnHeader class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    <div class="flex items-center cursor-pointer select-none" @click="handleSortRequest('device_provisioned_date')">
+                        <span class="mr-2">Last Contact</span>
+                        <ChevronUpIcon v-if="sortData.name === 'device_provisioned_date' && sortData.order === 'asc'" class="h-4 w-4 text-gray-500" />
+                        <ChevronDownIcon v-else-if="sortData.name === 'device_provisioned_date' && sortData.order === 'desc'" class="h-4 w-4 text-gray-500" />
+                    </div>
+                </TableColumnHeader>
+                                <TableColumnHeader header="Cloud" class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900" />
                 <TableColumnHeader header="" class="px-2 py-3.5 text-right text-sm font-semibold text-gray-900" />
             </template>
 
@@ -161,7 +175,7 @@
                                     <span v-if="row.lines.length > 1" class="font-semibold">
                                         Line {{ line.line_number }}:
                                     </span>
-                                    <span>{{ line.extension?.name_formatted || line.auth_id }}</span>
+                                    <span>{{ line.external_line ? line.auth_id : (line.extension?.name_formatted || line.auth_id) }}</span>
                                 </div>
                             </div>
                         </template>
@@ -169,8 +183,29 @@
                     <TableField class="whitespace-nowrap px-2 py-2 text-sm text-gray-500"
                         :text="row.device_description" />
 
-                    <TableField class="whitespace-nowrap px-2 py-2 text-sm text-gray-500"
-                        :text="row.device_provisioned_date_formatted ?? row.device_provisioned_date" />
+                    <TableField class="whitespace-nowrap px-2 py-2 text-sm text-gray-500">
+                        <div v-if="row.device_provisioned_ip || row.device_provisioned_agent" 
+                            class="group relative inline-block cursor-help focus:outline-none" 
+                            tabindex="0">
+                            
+                            <span>{{ row.device_provisioned_date_formatted ?? row.device_provisioned_date }}</span>
+                            
+                            <div class="invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100 transition-opacity duration-300 absolute z-50 bottom-full left-1/2 -translate-x-1/2 pb-2">
+                                
+                                <div class="px-3 py-2 text-xs leading-relaxed text-white bg-gray-900 rounded shadow-lg whitespace-nowrap cursor-text select-text">
+                                    <div v-if="row.device_provisioned_ip">IP: {{ row.device_provisioned_ip }}</div>
+                                    <div v-if="row.device_provisioned_agent">Agent: {{ row.device_provisioned_agent }}</div>
+                                    
+                                    <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                </div>
+                                
+                            </div>
+                            
+                        </div>
+                        <div v-else>
+                            {{ row.device_provisioned_date_formatted ?? row.device_provisioned_date }}
+                        </div>
+                    </TableField>
 
                     <TableField class="whitespace-nowrap px-2 py-2 text-sm text-gray-500">
                         <div class="flex items-center whitespace-nowrap">
@@ -260,16 +295,16 @@
 
     <CreateDeviceForm :show="showCreateModal" :options="itemOptions" :loading="isModalLoading"
         :header="'Create New Device'" @close="showCreateModal = false" @error="handleErrorResponse"
-        @success="showNotification" @refresh-data="handleSearchButtonClick" />
+        @success="showNotification" @refresh-data="refreshCurrentPage" />
 
     <UpdateDeviceForm :show="showUpdateModal" :options="itemOptions" :loading="isModalLoading"
         :header="'Update Device - ' + (itemOptions?.item?.device_address_formatted ?? 'loading')"
         @close="showUpdateModal = false" @error="handleErrorResponse" @success="showNotification"
-        @refresh-data="handleSearchButtonClick" />
+        @refresh-data="refreshCurrentPage" />
 
     <BulkUpdateDeviceForm :items="selectedItems" :options="itemOptions" :show="showBulkUpdateModal"
         :header="'Bulk Update'" :loading="isModalLoading" @close="handleModalClose"
-        @refresh-data="handleSearchButtonClick" />
+        @refresh-data="refreshCurrentPage" />
 
 
     <CloudProvisioningSettings :show="showCloudProvisioningSettings" @close="showCloudProvisioningSettings = false"
@@ -335,7 +370,7 @@ import DeleteConfirmationModal from "./components/modal/DeleteConfirmationModal.
 import ConfirmationModal from "./components/modal/ConfirmationModal.vue";
 import Loading from "./components/general/Loading.vue";
 import { registerLicense } from '@syncfusion/ej2-base';
-import { MagnifyingGlassIcon, TrashIcon, PencilSquareIcon, CloudIcon } from "@heroicons/vue/24/solid";
+import { MagnifyingGlassIcon, TrashIcon, PencilSquareIcon, CloudIcon, ChevronUpIcon, ChevronDownIcon } from "@heroicons/vue/24/solid";
 import { ClipboardDocumentIcon } from "@heroicons/vue/24/outline";
 import { TooltipComponent as EjsTooltip } from "@syncfusion/ej2-vue-popups";
 import BulkUpdateDeviceForm from "./components/forms/BulkUpdateDeviceForm.vue";
@@ -352,6 +387,7 @@ const page = usePage()
 const itemOptions = ref({})
 const loading = ref(false)
 const isModalLoading = ref(false)
+const currentPage = ref(1)
 const selectAll = ref(false);
 const selectedItems = ref([]);
 const selectPageItems = ref(false);
@@ -401,6 +437,11 @@ const filterData = ref({
     showGlobal: false,
 });
 
+const sortData = ref({
+    name: 'device_address',
+    order: 'asc',
+});
+
 const advancedActions = computed(() => [
     {
         category: "Advanced",
@@ -409,6 +450,17 @@ const advancedActions = computed(() => [
         ],
     },
 ]);
+
+const handleSortRequest = (column) => {
+    if (sortData.value.name === column) {
+        sortData.value.order = sortData.value.order === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortData.value.name = column;
+        sortData.value.order = 'asc';
+    }
+    getData();
+};
+
 
 const handleAdvancedActionRequest = (action, uuid) => {
     if (action === 'duplicate') {
@@ -435,7 +487,7 @@ const submitDuplicateRequest = () => {
         .then((response) => {
             showDuplicateModal.value = false;
             showNotification('success', response.data.messages);
-            handleSearchButtonClick();
+            refreshCurrentPage();
         })
         .catch((error) => {
             handleFormErrorResponse(error);
@@ -565,7 +617,7 @@ const executeBulkDelete = (items = selectedItems.value) => {
         .then((response) => {
             handleModalClose();
             showNotification('success', response.data.messages);
-            handleSearchButtonClick();
+            refreshCurrentPage();
         })
         .catch((error) => {
             handleClearSelection();
@@ -625,25 +677,34 @@ const handleRestart = (device_uuid) => {
 
 const handleShowGlobal = () => {
     filterData.value.showGlobal = true;
-    handleSearchButtonClick();
+    getData(1);
 }
 
 const handleShowLocal = () => {
     filterData.value.showGlobal = false;
-    handleSearchButtonClick();
+    getData(1);
 }
 
 const getData = (page = 1) => {
     loading.value = true;
+    currentPage.value = Number(page) || 1;
+
+        let sort = sortData.value.name;
+    if (sortData.value.order === 'desc') {
+        sort = `-${sort}`;
+    }
+
 
     axios.get(props.routes.data_route, {
         params: {
             filter: filterData.value,
-            page,
+            page: currentPage.value,
+            sort,
         }
     })
         .then((response) => {
             data.value = response.data;
+            currentPage.value = response.data.current_page ?? currentPage.value;
             // console.log(data.value);
 
         }).catch((error) => {
@@ -655,14 +716,18 @@ const getData = (page = 1) => {
 }
 
 const handleSearchButtonClick = () => {
-    getData()
+    getData(1)
+};
+
+const refreshCurrentPage = () => {
+    getData(currentPage.value)
 };
 
 
 const handleFiltersReset = () => {
     filterData.value.search = null;
     // After resetting the filters, call handleSearchButtonClick to perform the search with the updated filters
-    handleSearchButtonClick();
+    getData(1);
 }
 
 
