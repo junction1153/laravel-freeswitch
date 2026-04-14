@@ -444,12 +444,12 @@ class VirtualReceptionistController extends Controller
                 $ivr->ivr_menu_description = '';
                 $ivr->ivr_menu_greet_long = null;
                 $ivr->ivr_menu_enabled = 'true';
-                $ivr->ivr_menu_digit_len = '5';
-                $ivr->ivr_menu_timeout = '3000';
+                $ivr->ivr_menu_digit_len = '3';
+                $ivr->ivr_menu_timeout = '10000';
                 $ivr->ivr_menu_ringback = '${us-ring}';
                 $ivr->ivr_menu_invalid_sound = 'ivr/ivr-that_was_an_invalid_entry.wav';
                 $ivr->ivr_menu_exit_sound = 'silence_stream://100';
-                $ivr->ivr_menu_direct_dial = 'false';
+                $ivr->ivr_menu_direct_dial = 'true';
                 $ivr->ivr_menu_max_failures = '3';
                 $ivr->ivr_menu_max_timeouts = '3';
                 $ivr->ivr_menu_cid_prefix = '';
