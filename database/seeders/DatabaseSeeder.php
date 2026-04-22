@@ -152,6 +152,7 @@ class DatabaseSeeder extends Seeder
             ['application_name' => 'Call Transcriptions', 'permission_name' => 'transcription_read'],
             ['application_name' => 'Call Transcriptions', 'permission_name' => 'transcription_summary'],
             ['application_name' => 'XML CDR', 'permission_name' => 'xml_cdr_search_sentiment'],
+            ['application_name' => 'XML CDR', 'permission_name' => 'xml_cdr_view_self_records'],
             ['application_name' => 'Messages', 'permission_name' => 'messages_view'],
             ['application_name' => 'Messages', 'permission_name' => 'messages_view_as'],
         ];
@@ -291,6 +292,9 @@ class DatabaseSeeder extends Seeder
             ],
             'multi-site admin' => [
                 'domain_select',
+            ],
+            'user' => [
+                'xml_cdr_view_self_records',
             ],
         ];
 
@@ -686,6 +690,14 @@ class DatabaseSeeder extends Seeder
                 'default_setting_value'         => "",
                 'default_setting_enabled'       => true,
                 'default_setting_description'   => "",
+            ],
+            [
+                'default_setting_category'      => 'provision',
+                'default_setting_subcategory'   => 'drop_self_extension_keys',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => "true",
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Prevents the phone from provisioning duplicate self-monitoring keys by removing non-line keys that point to its own extensions. Turn this off when you intentionally want those keys to be kept.",
             ],
             [
                 'default_setting_category'      => 'company',

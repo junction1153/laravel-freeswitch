@@ -230,7 +230,12 @@ class ProvisioningController extends Controller
             ];
         }
 
-        $keyAreas = $this->getEffectiveDeviceKeysByArea($device);
+        $settings = $this->getProvisionSettings(
+            (string) $device->domain_uuid,
+            (string) $device->device_uuid
+        );
+
+        $keyAreas = $this->getEffectiveDeviceKeysByArea($device, $settings);
         // logger($keyAreas);
 
         return [
@@ -252,10 +257,7 @@ class ProvisioningController extends Controller
 
             'lines'       => $lines,
             'line_count'  => count($lines),
-            'settings'    => $this->getProvisionSettings(
-                (string) $device->domain_uuid,
-                (string) $device->device_uuid
-            ),
+            'settings'    => $settings,
         ];
     }
 
@@ -481,7 +483,7 @@ class ProvisioningController extends Controller
     }
 
 
-    private function getEffectiveDeviceKeysByArea(Devices $device): array
+    private function getEffectiveDeviceKeysByArea(Devices $device, array $settings = []): array
     {
         $profileKeys = collect($device->profile?->keys ?? []);
         $legacyKeys  = collect($device->legacy_keys ?? []);
@@ -499,23 +501,28 @@ class ProvisioningController extends Controller
 
         // Normalize old/profile/legacy keys into the same effective shape
         $normalizeLegacyKey = function (array $item, string $source) use ($device) {
+            $vendor = strtolower((string) $device->device_vendor);
             $type  = strtolower((string) ($item['type'] ?? ''));
             $line  = $item['line'] !== null ? (int) $item['line'] : null;
             $value = $item['value'] ?? null;
             $label = $item['label'] ?? null;
 
             if ($type === 'line') {
-                // Legacy/profile line indexes appear to be zero-based:
-                // 0 => first line, 1 => second line, etc.
-                $lookupLineNumber = $line !== null ? $line + 1 : 1;
+                // Polycom legacy/profile line keys already store the correct value.
+                // Do not rewrite them from the device line's auth_id/display_name.
+                if ($vendor !== 'polycom') {
+                    // Legacy/profile line indexes appear to be zero-based:
+                    // 0 => first line, 1 => second line, etc.
+                    $lookupLineNumber = $line !== null ? $line + 1 : 1;
 
-                $lineObj = collect($device->lines ?? [])->firstWhere('line_number', $lookupLineNumber);
+                    $lineObj = collect($device->lines ?? [])->firstWhere('line_number', $lookupLineNumber);
 
-                if ($lineObj) {
-                    $value = $lineObj->auth_id ?? $value;
+                    if ($lineObj) {
+                        $value = $lineObj->auth_id ?? $value;
 
-                    if (empty($label)) {
-                        $label = $lineObj->display_name ?? $lineObj->auth_id ?? null;
+                        if (empty($label)) {
+                            $label = $lineObj->display_name ?? $lineObj->auth_id ?? null;
+                        }
                     }
                 }
             }
@@ -611,7 +618,7 @@ class ProvisioningController extends Controller
         foreach ($maps as $area => $map) {
             ksort($map, SORT_NUMERIC);
 
-            $processed = $this->postProcessEffectiveKeys($device, array_values($map));
+            $processed = $this->postProcessEffectiveKeys($device, array_values($map), $settings);
 
             // Translate to vendor-specific output only after all logical processing is done
             $maps[$area] = $this->translateEffectiveKeysForVendor($device, $processed);
@@ -656,31 +663,35 @@ class ProvisioningController extends Controller
         return ['main', $category ?: null];
     }
 
-    private function postProcessEffectiveKeys(Devices $device, array $keys): array
+    private function postProcessEffectiveKeys(Devices $device, array $keys, array $settings = []): array
     {
-        // Build list of device’s own extensions
-        $selfExts = collect($device->lines ?? [])
-            ->pluck('auth_id')
-            ->filter()
-            ->map(fn($v) => (string) $v)
-            ->unique();
+        $dropSelfExtensionKeys = $settings['drop_self_extension_keys'] ?? true;
 
-        // Drop any key whose value matches a self extension,
-        // but keep real line keys
-        $keys = array_values(array_filter($keys, function ($k) use ($selfExts) {
-            $type = strtolower((string) ($k['type'] ?? ''));
-            $val = (string) ($k['value'] ?? '');
+        if ($dropSelfExtensionKeys) {
+            // Build list of device’s own extensions
+            $selfExts = collect($device->lines ?? [])
+                ->pluck('auth_id')
+                ->filter()
+                ->map(fn($v) => (string) $v)
+                ->unique();
 
-            if ($val === '') {
-                return true;
-            }
+            // Drop any key whose value matches a self extension,
+            // but keep real line keys
+            $keys = array_values(array_filter($keys, function ($k) use ($selfExts) {
+                $type = strtolower((string) ($k['type'] ?? ''));
+                $val = (string) ($k['value'] ?? '');
 
-            if ($type === 'line') {
-                return true;
-            }
+                if ($val === '') {
+                    return true;
+                }
 
-            return !$selfExts->contains($val);
-        }));
+                if ($type === 'line') {
+                    return true;
+                }
+
+                return !$selfExts->contains($val);
+            }));
+        }
 
         foreach ($keys as $i => &$k) {
             $k['id'] = $i + 1;
