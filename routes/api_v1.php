@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\DomainController;
+use App\Http\Controllers\Api\V1\DeviceController;
 use App\Http\Controllers\Api\V1\ExtensionController;
 use App\Http\Controllers\Api\V1\RingGroupController;
 use App\Http\Controllers\Api\V1\VoicemailController;
@@ -97,6 +98,26 @@ Route::middleware(['auth:sanctum', 'api.token.auth', 'throttle:api'])->group(fun
 
     Route::delete('/domains/{domain_uuid}/ring-groups/{ring_group_uuid}', [RingGroupController::class, 'destroy'])
         ->middleware('user.authorize:ring_group_delete');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Devices (domain-scoped)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/domains/{domain_uuid}/devices', [DeviceController::class, 'index'])
+        ->middleware('user.authorize:device_view');
+
+    Route::get('/domains/{domain_uuid}/devices/{device_uuid}', [DeviceController::class, 'show'])
+        ->middleware('user.authorize:device_view');
+
+    Route::post('/domains/{domain_uuid}/devices', [DeviceController::class, 'store'])
+        ->middleware('user.authorize:device_add');
+
+    Route::patch('/domains/{domain_uuid}/devices/{device_uuid}', [DeviceController::class, 'update'])
+        ->middleware('user.authorize:device_edit');
+
+    Route::delete('/domains/{domain_uuid}/devices/{device_uuid}', [DeviceController::class, 'destroy'])
+        ->middleware('user.authorize:device_delete');
 
     /*
     |--------------------------------------------------------------------------
