@@ -81,7 +81,7 @@ class CreateFSPBXMenu extends Command
                 'link' => null,
                 'groups' => ['superadmin', 'admin', 'user', 'fax', 'agent'],
                 'subcategories' => [
-                    ['title' => 'Account Settings', 'link' => '/core/users/user_edit.php?id=user', 'groups' => ['superadmin', 'admin', 'user', 'agent']],
+                    // ['title' => 'Account Settings', 'link' => '/core/users/user_edit.php?id=user', 'groups' => ['superadmin', 'admin', 'user', 'agent']],
                     ['title' => 'Dashboard', 'link' => '/dashboard', 'groups' => ['superadmin', 'admin', 'user', 'agent']],
                     ['title' => 'Logout', 'link' => '/logout', 'groups' => ['superadmin', 'admin', 'user', 'fax', 'agent']],
                 ],
@@ -93,7 +93,7 @@ class CreateFSPBXMenu extends Command
                 'subcategories' => [
                     ['title' => 'Devices', 'link' => '/devices','groups' => ['superadmin', 'admin']],
                     ['title' => 'Extensions', 'link' => '/extensions', 'groups' => ['superadmin', 'admin']],
-                    ['title' => 'Gateways', 'link' => '/app/gateways/gateways.php', 'groups' => ['superadmin']],
+                    ['title' => 'Gateways', 'link' => '/gateways', 'groups' => ['superadmin']],
                     ['title' => 'Users', 'link' => '/users', 'groups' => ['superadmin', 'admin']],
                 ],
             ],
@@ -102,10 +102,10 @@ class CreateFSPBXMenu extends Command
                 'link' => null,
                 'groups' => ['superadmin', 'admin'],
                 'subcategories' => [
-                    ['title' => 'Dialplan Manager', 'link' => '/app/dialplans/dialplans.php', 'groups' => ['superadmin', 'admin']],
+                    ['title' => 'Dialplan Manager', 'link' => '/dialplans', 'groups' => ['superadmin', 'admin']],
                     ['title' => 'Phone Numbers', 'link' => '/phone-numbers','groups' => ['superadmin', 'admin']],
-                    ['title' => 'Inbound Routes', 'link' => '/app/dialplans/dialplans.php?app_uuid=c03b422e-13a8-bd1b-e42b-b6b9b4d27ce4', 'groups' => ['superadmin']],
-                    ['title' => 'Outbound Routes', 'link' => '/app/dialplans/dialplans.php?app_uuid=8c914ec3-9fc0-8ab5-4cda-6c9288bdc9a3', 'groups' => ['superadmin']],
+                    ['title' => 'Inbound Routes', 'link' => '/dialplans?category=inbound', 'groups' => ['superadmin']],
+                    ['title' => 'Outbound Routes', 'link' => '/dialplans?category=outbound', 'groups' => ['superadmin']],
                 ],
             ],
             [
@@ -148,7 +148,7 @@ class CreateFSPBXMenu extends Command
                     ['title' => 'Log Viewer', 'link' => '/app/log_viewer/log_viewer.php', 'groups' => ['superadmin']],
                     ['title' => 'Registrations', 'link' => '/registrations', 'groups' => ['superadmin', 'admin']],
                     ['title' => 'SIP Status', 'link' => '/sip-status', 'groups' => ['superadmin']],
-                    ['title' => 'System Status', 'link' => '/app/system/system.php', 'groups' => ['superadmin']],
+                    ['title' => 'System Status', 'link' => '/system', 'groups' => ['superadmin']],
                     ['title' => 'User Logs', 'link' => '/user-logs', 'groups' => ['superadmin']],
                 ],
             ],
@@ -157,7 +157,7 @@ class CreateFSPBXMenu extends Command
                 'link' => null,
                 'groups' => ['superadmin'],
                 'subcategories' => [
-                    ['title' => 'Access Control', 'link' => '/app/access_controls/access_controls.php', 'groups' => ['superadmin']],
+                    ['title' => 'Access Control', 'link' => '/access-controls', 'groups' => ['superadmin']],
                     ['title' => 'Default Settings', 'link' => '/core/default_settings/default_settings.php', 'groups' => ['superadmin']],
                     ['title' => 'Domains', 'link' => '/domains', 'groups' => ['superadmin']],
                     ['title' => 'Email templates', 'link' => '/app/email_templates/email_templates.php', 'groups' => ['superadmin']],

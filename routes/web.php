@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountSettingsController;
+use App\Http\Controllers\AccessControlController;
 use App\Http\Controllers\ActiveCallsController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AppsController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\CsrfTokenController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeviceCloudProvisioningController;
 use App\Http\Controllers\DeviceController;
+use App\Http\Controllers\DialplanController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\DomainGroupsController;
 use App\Http\Controllers\EmailQueueController;
@@ -26,6 +28,7 @@ use App\Http\Controllers\FaxLogController;
 use App\Http\Controllers\FaxQueueController;
 use App\Http\Controllers\FaxSentController;
 use App\Http\Controllers\FirewallController;
+use App\Http\Controllers\GatewayController;
 use App\Http\Controllers\GroupsController;
 use App\Http\Controllers\LogsController;
 use App\Http\Controllers\MessageController;
@@ -44,6 +47,7 @@ use App\Http\Controllers\SansayActiveCallsController;
 use App\Http\Controllers\SansayRegistrationsController;
 use App\Http\Controllers\SipStatusController;
 use App\Http\Controllers\SpeedDialController;
+use App\Http\Controllers\SystemController;
 use App\Http\Controllers\SystemSettingsController;
 use App\Http\Controllers\UserLogsController;
 use App\Http\Controllers\UsersController;
@@ -118,6 +122,10 @@ Route::match(['GET', 'HEAD'], '/prov/{path}', [ProvisioningController::class, 's
 Route::get('/call-detail-records/recordings/{uuid}/stream', [CallRecordingController::class, 'stream'])->name('cdrs.recording.stream');
 Route::get('/call-detail-records/recordings/{uuid}/download', [CallRecordingController::class, 'download'])->name('cdrs.recording.download');
 
+// Signed voicemail recording download links sent by email.
+Route::get('/voicemails/messages/{message_uuid}/public-download', [VoicemailMessagesController::class, 'downloadSignedVoicemailMessage'])
+    ->name('voicemails.messages.public-download');
+
 Route::group(['middleware' => 'auth'], function () {
 
     // Extensions
@@ -179,6 +187,15 @@ Route::group(['middleware' => 'auth'], function () {
     // Ring Groups
     Route::get('ring-groups', [RingGroupsController::class, 'index'])->name('ring-groups.index');
 
+    // Gateways
+    Route::get('gateways', [GatewayController::class, 'index'])->name('gateways.index');
+
+    // Access Controls
+    Route::get('access-controls', [AccessControlController::class, 'index'])->name('access-controls.index');
+
+    // Dialplans
+    Route::get('dialplans', [DialplanController::class, 'index'])->name('dialplans.index');
+
     // Recordings Manager
     Route::get('recordings-manager', [RecordingsManagerController::class, 'index'])->name('recordings-manager.index');
     Route::get('recordings-manager/{recording}/download', [RecordingsManagerController::class, 'download'])->name('recordings-manager.download');
@@ -212,6 +229,9 @@ Route::group(['middleware' => 'auth'], function () {
 
     // System Settings
     Route::get('system-settings', [SystemSettingsController::class, 'index'])->name('system-settings.index');
+
+    // System
+    Route::get('system', [SystemController::class, 'index'])->name('system.index');
 
     // Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home');

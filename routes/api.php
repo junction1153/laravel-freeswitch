@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountSettingsController;
+use App\Http\Controllers\AccessControlController;
 use App\Http\Controllers\Api\EmergencyCallController;
 use App\Http\Controllers\Api\HolidayHoursController;
 use App\Http\Controllers\Api\LocationsController;
@@ -11,8 +12,10 @@ use App\Http\Controllers\CallTranscriptionController;
 use App\Http\Controllers\CdrsController;
 use App\Http\Controllers\CharPmsWebhookController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeviceCloudProvisioningController;
 use App\Http\Controllers\DeviceController;
+use App\Http\Controllers\DialplanController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\DomainGroupsController;
 use App\Http\Controllers\EmailLogsController;
@@ -24,6 +27,7 @@ use App\Http\Controllers\FaxInboxController;
 use App\Http\Controllers\FaxLogController;
 use App\Http\Controllers\FaxSentController;
 use App\Http\Controllers\GreetingsController;
+use App\Http\Controllers\GatewayController;
 use App\Http\Controllers\GroupsController;
 use App\Http\Controllers\HotelHousekeepingDefinitionController;
 use App\Http\Controllers\HotelRoomController;
@@ -38,6 +42,7 @@ use App\Http\Controllers\RecordingsManagerController;
 use App\Http\Controllers\RingGroupsController;
 use App\Http\Controllers\SipStatusController;
 use App\Http\Controllers\SpeedDialController;
+use App\Http\Controllers\SystemController;
 use App\Http\Controllers\SystemSettingsController;
 use App\Http\Controllers\TokenController;
 use App\Http\Controllers\UserLogsController;
@@ -59,6 +64,11 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () {
+    // Dashboard
+    Route::get('/dashboard/data', [DashboardController::class, 'getData'])->name('dashboard.data');
+    Route::get('/dashboard/counts', [DashboardController::class, 'getCounts'])->name('dashboard.counts');
+    Route::get('/dashboard/my-extension-status', [DashboardController::class, 'getMyExtensionStatus'])->name('dashboard.my-extension-status');
+
     // Tokens
     Route::resource('/tokens', TokenController::class);
     Route::post('tokens/bulk-delete', [TokenController::class, 'bulkDelete'])->name('tokens.bulk.delete');
@@ -264,6 +274,40 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     Route::post('devices/assign', [DeviceController::class, 'assign'])->name('devices.assign');
     Route::post('devices/bulk-unassign', [DeviceController::class, 'bulkUnassign'])->name('devices.bulk.unassign');
 
+    // Gateways
+    Route::post('gateways', [GatewayController::class, 'store'])->name('gateways.store');
+    Route::put('gateways/{gateway}', [GatewayController::class, 'update'])->name('gateways.update');
+    Route::get('/gateways/data', [GatewayController::class, 'getData'])->name('gateways.data');
+    Route::post('/gateways/item-options', [GatewayController::class, 'getItemOptions'])->name('gateways.item.options');
+    Route::post('/gateways/select-all', [GatewayController::class, 'selectAll'])->name('gateways.select.all');
+    Route::post('/gateways/bulk-delete', [GatewayController::class, 'bulkDelete'])->name('gateways.bulk.delete');
+    Route::post('/gateways/bulk-copy', [GatewayController::class, 'bulkCopy'])->name('gateways.bulk.copy');
+    Route::post('/gateways/bulk-toggle', [GatewayController::class, 'bulkToggle'])->name('gateways.bulk.toggle');
+    Route::post('/gateways/bulk-start', [GatewayController::class, 'bulkStart'])->name('gateways.bulk.start');
+    Route::post('/gateways/bulk-stop', [GatewayController::class, 'bulkStop'])->name('gateways.bulk.stop');
+
+    // Access Controls
+    Route::post('access-controls', [AccessControlController::class, 'store'])->name('access-controls.store');
+    Route::put('access-controls/{access_control}', [AccessControlController::class, 'update'])->name('access-controls.update');
+    Route::get('/access-controls/data', [AccessControlController::class, 'getData'])->name('access-controls.data');
+    Route::post('/access-controls/item-options', [AccessControlController::class, 'getItemOptions'])->name('access-controls.item.options');
+    Route::post('/access-controls/select-all', [AccessControlController::class, 'selectAll'])->name('access-controls.select.all');
+    Route::post('/access-controls/bulk-delete', [AccessControlController::class, 'bulkDelete'])->name('access-controls.bulk.delete');
+    Route::post('/access-controls/bulk-copy', [AccessControlController::class, 'bulkCopy'])->name('access-controls.bulk.copy');
+    Route::post('/access-controls/reload', [AccessControlController::class, 'reload'])->name('access-controls.reload');
+
+    // Dialplans
+    Route::post('dialplans', [DialplanController::class, 'store'])->name('dialplans.store');
+    Route::put('dialplans/{dialplan}', [DialplanController::class, 'update'])->name('dialplans.update');
+    Route::get('/dialplans/data', [DialplanController::class, 'getData'])->name('dialplans.data');
+    Route::post('/dialplans/item-options', [DialplanController::class, 'getItemOptions'])->name('dialplans.item.options');
+    Route::post('/dialplans/outbound-routes/options', [DialplanController::class, 'getOutboundRouteOptions'])->name('dialplans.outbound-routes.options');
+    Route::post('/dialplans/outbound-routes', [DialplanController::class, 'storeOutboundRoute'])->name('dialplans.outbound-routes.store');
+    Route::post('/dialplans/select-all', [DialplanController::class, 'selectAll'])->name('dialplans.select.all');
+    Route::post('/dialplans/bulk-delete', [DialplanController::class, 'bulkDelete'])->name('dialplans.bulk.delete');
+    Route::post('/dialplans/bulk-copy', [DialplanController::class, 'bulkCopy'])->name('dialplans.bulk.copy');
+    Route::post('/dialplans/bulk-toggle', [DialplanController::class, 'bulkToggle'])->name('dialplans.bulk.toggle');
+
     // Call Flows
     Route::post('call-flows', [CallFlowController::class, 'store'])->name('call-flows.store');
     Route::put('call-flows/{call_flow}', [CallFlowController::class, 'update'])->name('call-flows.update');
@@ -376,6 +420,9 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     // System Settings
     Route::put('system-settings/update', [SystemSettingsController::class, 'update'])->name('system-settings.update');
     Route::get('system-settings/payment_gateways', [SystemSettingsController::class, 'getPaymentGatewayData'])->name('system-settings.payment_gateways');
+
+    // System
+    Route::get('system/data', [SystemController::class, 'data'])->name('system.data');
 
     // Call Transcription
     Route::get('/call-transcription/providers', [CallTranscriptionController::class, 'getProviders'])->name('call-transcription.providers');
