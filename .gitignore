@@ -27,3 +27,7 @@ app/provision/.gitkeep
 
 # Scribe generated docs/cache
 .scribe/
+
+#codex
+.codex/
+.agents/
