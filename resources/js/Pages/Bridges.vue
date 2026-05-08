@@ -3,10 +3,10 @@
 
     <div class="m-3">
         <DataTable @search-action="handleSearchButtonClick" @reset-filters="handleFiltersReset">
-            <template #title>{{ pageTitle }}</template>
+            <template #title>Bridges</template>
 
             <template #subtitle>
-                {{ pageSubtitle }}
+                Manage reusable bridge destinations for call routing.
             </template>
 
             <template #filters>
@@ -14,32 +14,32 @@
                     <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                         <MagnifyingGlassIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
                     </div>
-                    <input type="text" v-model="filterData.search" name="mobile-search-dialplans"
-                        id="mobile-search-dialplans"
+                    <input type="text" v-model="filterData.search" name="mobile-search-bridges"
+                        id="mobile-search-bridges"
                         class="block w-full rounded-md border-0 py-1.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:hidden"
                         placeholder="Search" @keydown.enter="handleSearchButtonClick" />
-                    <input type="text" v-model="filterData.search" name="desktop-search-dialplans"
-                        id="desktop-search-dialplans"
+                    <input type="text" v-model="filterData.search" name="desktop-search-bridges"
+                        id="desktop-search-bridges"
                         class="hidden w-full rounded-md border-0 py-1.5 pl-10 text-sm leading-6 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:block"
                         placeholder="Search" @keydown.enter="handleSearchButtonClick" />
                 </div>
             </template>
 
             <template #action>
-                <button v-if="createButtonVisible" type="button" @click.prevent="handleCreateButtonClick"
+                <button v-if="permissions.create" type="button" @click.prevent="handleCreateButtonClick"
                     class="rounded-md bg-indigo-600 px-2.5 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
                     Create
                 </button>
 
-                <button v-if="!isCategoryView && !filterData.showGlobal && permissions.view_global" type="button"
+                <!-- <button v-if="!filterData.showGlobal && permissions.view_global" type="button"
                     @click.prevent="handleShowGlobal"
-                    class="ml-2 rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:ml-4">
-                    Show global
-                </button>
+                    class="ml-2 sm:ml-4 rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                    Show all
+                </button> -->
 
-                <button v-if="!isCategoryView && filterData.showGlobal && permissions.view_global" type="button"
+                <button v-if="filterData.showGlobal && permissions.view_global" type="button"
                     @click.prevent="handleShowLocal"
-                    class="ml-2 rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:ml-4">
+                    class="ml-2 sm:ml-4 rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                     Show local
                 </button>
             </template>
@@ -56,62 +56,23 @@
                     class="flex whitespace-nowrap px-4 py-3.5 text-left text-sm font-semibold text-gray-900 items-center justify-start">
                     <input type="checkbox" v-model="selectPageItems" @change="handleSelectPageItems"
                         class="h-4 w-4 rounded border-gray-300 text-indigo-600">
-                    <div class="pl-4 flex items-center cursor-pointer select-none" @click="handleSortRequest('dialplan_name')">
+                    <div class="pl-4 flex items-center cursor-pointer select-none"
+                        @click="handleSortRequest('bridge_name')">
                         <span class="mr-2">Name</span>
-                        <ChevronUpIcon v-if="sortData.name === 'dialplan_name' && sortData.order === 'asc'"
+                        <ChevronUpIcon v-if="sortData.name === 'bridge_name' && sortData.order === 'asc'"
                             class="h-4 w-4 text-gray-500" />
-                        <ChevronDownIcon v-else-if="sortData.name === 'dialplan_name' && sortData.order === 'desc'"
+                        <ChevronDownIcon v-else-if="sortData.name === 'bridge_name' && sortData.order === 'desc'"
                             class="h-4 w-4 text-gray-500" />
                     </div>
                 </TableColumnHeader>
 
                 <TableColumnHeader v-if="filterData.showGlobal" header="Domain"
                     class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900" />
-                <TableColumnHeader class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    <div class="flex items-center cursor-pointer select-none" @click="handleSortRequest('dialplan_number')">
-                        <span class="mr-2">Number</span>
-                        <ChevronUpIcon v-if="sortData.name === 'dialplan_number' && sortData.order === 'asc'"
-                            class="h-4 w-4 text-gray-500" />
-                        <ChevronDownIcon v-else-if="sortData.name === 'dialplan_number' && sortData.order === 'desc'"
-                            class="h-4 w-4 text-gray-500" />
-                    </div>
-                </TableColumnHeader>
-                <TableColumnHeader v-if="permissions.context" class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    <div class="flex items-center cursor-pointer select-none" @click="handleSortRequest('dialplan_context')">
-                        <span class="mr-2">Context</span>
-                        <ChevronUpIcon v-if="sortData.name === 'dialplan_context' && sortData.order === 'asc'"
-                            class="h-4 w-4 text-gray-500" />
-                        <ChevronDownIcon v-else-if="sortData.name === 'dialplan_context' && sortData.order === 'desc'"
-                            class="h-4 w-4 text-gray-500" />
-                    </div>
-                </TableColumnHeader>
-                <TableColumnHeader class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    <div class="flex items-center cursor-pointer select-none" @click="handleSortRequest('dialplan_order')">
-                        <span class="mr-2">Order</span>
-                        <ChevronUpIcon v-if="sortData.name === 'dialplan_order' && sortData.order === 'asc'"
-                            class="h-4 w-4 text-gray-500" />
-                        <ChevronDownIcon v-else-if="sortData.name === 'dialplan_order' && sortData.order === 'desc'"
-                            class="h-4 w-4 text-gray-500" />
-                    </div>
-                </TableColumnHeader>
-                <TableColumnHeader class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    <div class="flex items-center cursor-pointer select-none" @click="handleSortRequest('dialplan_enabled')">
-                        <span class="mr-2">Enabled</span>
-                        <ChevronUpIcon v-if="sortData.name === 'dialplan_enabled' && sortData.order === 'asc'"
-                            class="h-4 w-4 text-gray-500" />
-                        <ChevronDownIcon v-else-if="sortData.name === 'dialplan_enabled' && sortData.order === 'desc'"
-                            class="h-4 w-4 text-gray-500" />
-                    </div>
-                </TableColumnHeader>
-                <TableColumnHeader class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    <div class="flex items-center cursor-pointer select-none" @click="handleSortRequest('dialplan_description')">
-                        <span class="mr-2">Description</span>
-                        <ChevronUpIcon v-if="sortData.name === 'dialplan_description' && sortData.order === 'asc'"
-                            class="h-4 w-4 text-gray-500" />
-                        <ChevronDownIcon v-else-if="sortData.name === 'dialplan_description' && sortData.order === 'desc'"
-                            class="h-4 w-4 text-gray-500" />
-                    </div>
-                </TableColumnHeader>
+                <TableColumnHeader header="Destination"
+                    class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900" />
+                <TableColumnHeader header="Enabled" class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900" />
+                <TableColumnHeader header="Description"
+                    class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900" />
                 <TableColumnHeader header="" class="px-2 py-3.5 text-right text-sm font-semibold text-gray-900" />
             </template>
 
@@ -134,46 +95,45 @@
             </template>
 
             <template #table-body>
-                <tr v-for="row in data.data" :key="row.dialplan_uuid">
-                    <TableField class="whitespace-nowrap px-4 py-2 text-sm text-gray-500" :text="row.dialplan_name">
+                <tr v-for="row in data.data" :key="row.bridge_uuid">
+                    <TableField class="whitespace-nowrap px-4 py-2 text-sm text-gray-500" :text="row.bridge_name">
                         <div class="flex items-center">
                             <input v-model="selectedItems" type="checkbox" name="action_box[]"
-                                :value="row.dialplan_uuid" class="h-4 w-4 rounded border-gray-300 text-indigo-600">
-                            <div class="ml-4" :class="{ 'cursor-pointer hover:text-gray-900': permissions.update }"
-                                @click="permissions.update && handleEditButtonClick(row.dialplan_uuid)">
-                                {{ row.dialplan_name }}
+                                :value="row.bridge_uuid" class="h-4 w-4 rounded border-gray-300 text-indigo-600">
+                            <div class="ml-4"
+                                :class="{ 'cursor-pointer hover:text-gray-900': permissions.update }"
+                                @click="permissions.update && handleEditButtonClick(row.bridge_uuid)">
+                                {{ row.bridge_name }}
                             </div>
                         </div>
                     </TableField>
 
                     <TableField v-if="filterData.showGlobal" class="whitespace-nowrap px-2 py-2 text-sm text-gray-500"
-                        :text="domainLabel(row)" />
-                    <TableField class="whitespace-nowrap px-2 py-2 text-sm text-gray-500" :text="row.dialplan_number" />
-                    <TableField v-if="permissions.context" class="whitespace-nowrap px-2 py-2 text-sm text-gray-500"
-                        :text="row.dialplan_context" />
-                    <TableField class="whitespace-nowrap px-2 py-2 text-sm text-gray-500" :text="String(row.dialplan_order ?? '')" />
+                        :text="row.domain?.domain_description || row.domain?.domain_name || 'Global'" />
+                    <TableField class="px-2 py-2 text-sm text-gray-500" :text="row.bridge_destination" />
+
                     <TableField class="whitespace-nowrap px-2 py-2 text-sm text-gray-500">
                         <button v-if="permissions.update" type="button" class="cursor-pointer"
-                            @click="executeToggle([row.dialplan_uuid])">
-                            <Badge :text="row.enabled_label" v-bind="enabledBadgeProps(row.dialplan_enabled_raw)" />
+                            @click="executeToggle([row.bridge_uuid])">
+                            <Badge :text="row.bridge_enabled === 'true' ? 'True' : 'False'"
+                                v-bind="enabledBadgeProps(row.bridge_enabled)" />
                         </button>
-                        <Badge v-else :text="row.enabled_label" v-bind="enabledBadgeProps(row.dialplan_enabled_raw)" />
+                        <Badge v-else :text="row.bridge_enabled === 'true' ? 'True' : 'False'"
+                            v-bind="enabledBadgeProps(row.bridge_enabled)" />
                     </TableField>
-                    <TableField class="px-2 py-2 text-sm text-gray-500" :text="row.dialplan_description" />
+
+                    <TableField class="px-2 py-2 text-sm text-gray-500" :text="row.bridge_description" />
 
                     <TableField class="whitespace-nowrap px-2 py-1 text-sm text-gray-500">
                         <template #action-buttons>
                             <div class="flex items-center whitespace-nowrap justify-end">
-                                <button v-if="permissions.update" type="button" title="Edit" aria-label="Edit dialplan"
-                                    class="rounded-full" @click="handleEditButtonClick(row.dialplan_uuid)">
-                                    <PencilSquareIcon
-                                        class="h-9 w-9 transition duration-500 ease-in-out py-2 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600 active:bg-gray-300 active:duration-150 cursor-pointer" />
-                                </button>
-                                <button v-if="permissions.destroy" type="button" title="Delete" aria-label="Delete dialplan"
-                                    class="rounded-full" @click="handleSingleItemDeleteRequest(row.dialplan_uuid)">
-                                    <TrashIcon
-                                        class="h-9 w-9 transition duration-500 ease-in-out py-2 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600 active:bg-gray-300 active:duration-150 cursor-pointer" />
-                                </button>
+                                <PencilSquareIcon v-if="permissions.update" @click="handleEditButtonClick(row.bridge_uuid)"
+                                    class="h-9 w-9 transition duration-500 ease-in-out py-2 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600 active:bg-gray-300 active:duration-150 cursor-pointer"
+                                    title="Edit" />
+
+                                <TrashIcon v-if="permissions.destroy" @click="handleSingleItemDeleteRequest(row.bridge_uuid)"
+                                    class="h-9 w-9 transition duration-500 ease-in-out py-2 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600 active:bg-gray-300 active:duration-150 cursor-pointer"
+                                    title="Delete" />
                             </div>
                         </template>
                     </TableField>
@@ -204,13 +164,9 @@
         @confirm="confirmAction" :header="confirmationHeader" :text="confirmationText"
         :confirm-button-label="confirmationButtonLabel" cancel-button-label="Cancel" />
 
-    <DialplanForm :show="showForm" :options="itemOptions" :mode="formMode" :loading="loadingForm"
+    <BridgeForm :show="showForm" :options="itemOptions" :mode="formMode" :loading="loadingForm"
         :header="formHeader" @close="handleFormClose" @error="handleErrorResponse" @success="showNotification"
-        @refresh-data="refreshCurrentPage" @saved="handleFormSaved" />
-
-    <OutboundRouteForm :show="showOutboundRouteForm" :options="outboundRouteOptions"
-        :loading="loadingOutboundRouteForm" @close="handleOutboundRouteFormClose" @error="handleErrorResponse"
-        @success="showNotification" @refresh-data="refreshCurrentPage" />
+        @refresh-data="refreshCurrentPage" />
 
     <Notification :show="notificationShow" :type="notificationType" :messages="notificationMessages"
         @update:show="hideNotification" />
@@ -226,25 +182,15 @@ import Paginator from "./components/general/Paginator.vue";
 import ConfirmationModal from "./components/modal/ConfirmationModal.vue";
 import Loading from "./components/general/Loading.vue";
 import Notification from "./components/notifications/Notification.vue";
-import DialplanForm from "./components/forms/DialplanForm.vue";
-import OutboundRouteForm from "./components/forms/OutboundRouteForm.vue";
+import BridgeForm from "./components/forms/BridgeForm.vue";
 import MainLayout from "../Layouts/MainLayout.vue";
 import Badge from "@generalComponents/Badge.vue";
-import {
-    ChevronDownIcon,
-    ChevronUpIcon,
-    MagnifyingGlassIcon,
-    PencilSquareIcon,
-    TrashIcon,
-} from "@heroicons/vue/24/solid";
+import { ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, PencilSquareIcon, TrashIcon } from "@heroicons/vue/24/solid";
 
 const props = defineProps({
     routes: Object,
     permissions: Object,
 });
-
-const routes = props.routes;
-const permissions = props.permissions;
 
 const loading = ref(false);
 const currentPage = ref(1);
@@ -262,25 +208,17 @@ const notificationShow = ref(false);
 const showForm = ref(false);
 const formMode = ref("create");
 const loadingForm = ref(false);
-const showOutboundRouteForm = ref(false);
-const loadingOutboundRouteForm = ref(false);
 const itemOptions = ref({
     item: {},
-    domain_options: [],
-    context_options: [],
-    application_options: [],
-    condition_options: [],
+    form: {},
+    actions: [],
+    gateways: [],
+    profiles: [],
     routes: {},
 });
-const outboundRouteOptions = ref({
-    gateway_options: [],
-    pattern_options: [],
-    domain_options: [],
-    context_options: [],
-    permissions: {},
-    defaults: {},
-    routes: {},
-});
+
+const routes = props.routes;
+const permissions = props.permissions;
 
 const data = ref({
     data: [],
@@ -297,23 +235,22 @@ const data = ref({
 const filterData = ref({
     search: null,
     showGlobal: false,
-    category: new URLSearchParams(window.location.search).get("category"),
 });
 
 const sortData = ref({
-    name: "dialplan_order",
+    name: "bridge_name",
     order: "asc",
 });
 
 const bulkActions = computed(() => {
     const actions = [];
 
-    if (permissions.update) {
-        actions.push({ id: "bulk_toggle_enabled", label: "Toggle Enabled", icon: "PencilSquareIcon" });
+    if (permissions.copy) {
+        actions.push({ id: "bulk_copy", label: "Copy", icon: "DocumentDuplicateIcon" });
     }
 
-    if (permissions.create) {
-        actions.push({ id: "bulk_copy", label: "Copy", icon: "PencilSquareIcon" });
+    if (permissions.update) {
+        actions.push({ id: "bulk_toggle", label: "Toggle Enabled", icon: "PencilSquareIcon" });
     }
 
     if (permissions.destroy) {
@@ -323,60 +260,15 @@ const bulkActions = computed(() => {
     return actions;
 });
 
-const isCategoryView = computed(() => ["inbound", "outbound"].includes(filterData.value.category));
-
-const createButtonVisible = computed(() => {
-    if (filterData.value.category === "inbound") {
-        return false;
-    }
-
-    if (filterData.value.category === "outbound") {
-        return permissions.create_outbound_route;
-    }
-
-    return permissions.create;
-});
-
-const pageTitle = computed(() => {
-    if (filterData.value.category === "inbound") {
-        return "Inbound Routes";
-    }
-
-    if (filterData.value.category === "outbound") {
-        return "Outbound Routes";
-    }
-
-    return "Dialplans";
-});
-
-const pageSubtitle = computed(() => {
-    if (filterData.value.category === "inbound") {
-        return "Manage public-context routes that receive calls from carriers and external sources.";
-    }
-
-    if (filterData.value.category === "outbound") {
-        return "Manage outbound route dialplans used to send calls to gateways.";
-    }
-
-    return "Manage custom FreeSWITCH dialplans and advanced routing rules.";
-});
-
-const selectionColspan = computed(() => {
-    let count = 7;
-    if (filterData.value.showGlobal) count += 1;
-    if (!permissions.context) count -= 1;
-    return count;
-});
+const selectionColspan = computed(() => filterData.value.showGlobal ? 6 : 5);
 
 const formHeader = computed(() => {
     if (formMode.value === "create") {
-        return "Create Dialplan";
+        return "Create Bridge";
     }
 
-    return `Update Dialplan - ${itemOptions.value?.item?.dialplan_name || "Loading..."}`;
+    return `Update Bridge - ${itemOptions.value?.item?.bridge_name || "Loading..."}`;
 });
-
-const domainLabel = (row) => row.domain?.domain_description || row.domain?.domain_name || "Global";
 
 onMounted(() => {
     getData();
@@ -440,24 +332,12 @@ const renderRequestedPage = (url) => {
     getData(pageParam);
 };
 
-const handleShowGlobal = () => {
-    filterData.value.showGlobal = true;
-    getData(1);
-};
-
 const handleShowLocal = () => {
     filterData.value.showGlobal = false;
     getData(1);
 };
 
-
 const handleCreateButtonClick = () => {
-    if (filterData.value.category === "outbound") {
-        showOutboundRouteForm.value = true;
-        getOutboundRouteOptions();
-        return;
-    }
-
     showForm.value = true;
     formMode.value = "create";
     getItemOptions();
@@ -485,62 +365,22 @@ const getItemOptions = (itemUuid = null) => {
         });
 };
 
-const getOutboundRouteOptions = () => {
-    loadingOutboundRouteForm.value = true;
-
-    axios.post(routes.outbound_route_options)
-        .then((response) => {
-            outboundRouteOptions.value = response.data;
-        })
-        .catch((error) => {
-            handleOutboundRouteFormClose();
-            handleErrorResponse(error);
-        })
-        .finally(() => {
-            loadingOutboundRouteForm.value = false;
-        });
-};
-
-const handleFormSaved = (payload = {}) => {
-    const uuid = payload.dialplan_uuid || itemOptions.value?.item?.dialplan_uuid;
-
-    if (!uuid) {
-        return;
-    }
-
-    formMode.value = "update";
-    getItemOptions(uuid);
-};
-
 const handleFormClose = () => {
     showForm.value = false;
     formMode.value = "create";
     itemOptions.value = {
         item: {},
-        domain_options: [],
-        context_options: [],
-        application_options: [],
-        condition_options: [],
-        routes: {},
-    };
-};
-
-const handleOutboundRouteFormClose = () => {
-    showOutboundRouteForm.value = false;
-    outboundRouteOptions.value = {
-        gateway_options: [],
-        pattern_options: [],
-        domain_options: [],
-        context_options: [],
-        permissions: {},
-        defaults: {},
+        form: {},
+        actions: [],
+        gateways: [],
+        profiles: [],
         routes: {},
     };
 };
 
 const handleSelectPageItems = () => {
     if (selectPageItems.value) {
-        selectedItems.value = data.value.data.map((item) => item.dialplan_uuid);
+        selectedItems.value = data.value.data.map((item) => item.bridge_uuid);
     } else {
         selectedItems.value = [];
     }
@@ -568,35 +408,35 @@ const handleClearSelection = () => {
 const handleSingleItemDeleteRequest = (uuid) => {
     showConfirmation({
         header: "Confirm Deletion",
-        text: "This action will permanently delete the selected dialplan.",
+        text: "This action will permanently delete the selected bridge.",
         button: "Delete",
         action: () => executeBulkDelete([uuid]),
     });
 };
 
 const handleBulkActionRequest = (action) => {
-    if (action === "bulk_delete") {
-        showConfirmation({
-            header: "Confirm Deletion",
-            text: "This action will permanently delete the selected dialplan(s).",
-            button: "Delete",
-            action: () => executeBulkDelete(),
-        });
-    }
-
     if (action === "bulk_copy") {
         showConfirmation({
             header: "Confirm Copy",
-            text: "Copy the selected dialplan(s)?",
+            text: "Copy the selected bridge(s)?",
             button: "Copy",
             action: () => executeBulkCopy(),
         });
     }
 
-    if (action === "bulk_toggle_enabled") {
+    if (action === "bulk_delete") {
+        showConfirmation({
+            header: "Confirm Deletion",
+            text: "This action will permanently delete the selected bridge(s).",
+            button: "Delete",
+            action: () => executeBulkDelete(),
+        });
+    }
+
+    if (action === "bulk_toggle") {
         showConfirmation({
             header: "Confirm Toggle",
-            text: "Toggle enabled for the selected dialplan(s)?",
+            text: "Toggle enabled for the selected bridge(s)?",
             button: "Toggle",
             action: () => executeToggle(selectedItems.value),
         });
@@ -611,8 +451,8 @@ const showConfirmation = ({ header, text, button, action }) => {
     confirmationModalTrigger.value = true;
 };
 
-const executeBulkDelete = (items = selectedItems.value) => {
-    axios.post(routes.bulk_delete, { items })
+const executeBulkCopy = (items = selectedItems.value) => {
+    axios.post(routes.bulk_copy, { items })
         .then((response) => {
             handleModalClose();
             handleClearSelection();
@@ -626,8 +466,8 @@ const executeBulkDelete = (items = selectedItems.value) => {
         });
 };
 
-const executeBulkCopy = (items = selectedItems.value) => {
-    axios.post(routes.bulk_copy, { items })
+const executeBulkDelete = (items = selectedItems.value) => {
+    axios.post(routes.bulk_delete, { items })
         .then((response) => {
             handleModalClose();
             handleClearSelection();
@@ -674,26 +514,24 @@ const showNotification = (type, messages = null) => {
 };
 
 const handleErrorResponse = (error) => {
-    notificationType.value = "error";
-    notificationMessages.value = error?.response?.data?.messages
-        || error?.response?.data?.errors
-        || { error: ["Something went wrong."] };
-    notificationShow.value = true;
-};
-
-const enabledBadgeProps = (enabled) => {
-    if (enabled === "true" || enabled === true) {
-        return {
-            backgroundColor: "bg-green-50",
-            textColor: "text-green-700",
-            ringColor: "ring-green-600/20",
-        };
+    if (error.response) {
+        showNotification("error", error.response.data.errors || error.response.data.messages || { request: [error.message] });
+    } else if (error.request) {
+        showNotification("error", { request: [error.request] });
+    } else {
+        showNotification("error", { request: [error.message] });
     }
-
-    return {
-        backgroundColor: "bg-gray-50",
-        textColor: "text-gray-600",
-        ringColor: "ring-gray-500/20",
-    };
 };
+
+const enabledBadgeProps = (enabled) => enabled === "true"
+    ? {
+        backgroundColor: "bg-green-50",
+        textColor: "text-green-700",
+        ringColor: "ring-green-600/20",
+    }
+    : {
+        backgroundColor: "bg-gray-50",
+        textColor: "text-gray-700",
+        ringColor: "ring-gray-600/20",
+    };
 </script>
