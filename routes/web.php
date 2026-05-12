@@ -10,6 +10,7 @@ use App\Http\Controllers\AppsCredentialsController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\BusinessHoursController;
 use App\Http\Controllers\BridgeController;
+use App\Http\Controllers\CallBlockController;
 use App\Http\Controllers\CallRecordingController;
 use App\Http\Controllers\CallFlowController;
 use App\Http\Controllers\CallRoutingOptionsController;
@@ -41,6 +42,7 @@ use App\Http\Controllers\LogsController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\MessageMediaController;
 use App\Http\Controllers\MessageSettingsController;
+use App\Http\Controllers\MusicOnHoldController;
 use App\Http\Controllers\PhoneNumbersController;
 use App\Http\Controllers\PolycomLogController;
 use App\Http\Controllers\ProFeaturesController;
@@ -207,6 +209,12 @@ Route::group(['middleware' => 'auth'], function () {
     Route::get('recordings-manager', [RecordingsManagerController::class, 'index'])->name('recordings-manager.index');
     Route::get('recordings-manager/{recording}/download', [RecordingsManagerController::class, 'download'])->name('recordings-manager.download');
 
+    // Music on Hold
+    Route::get('music-on-hold', [MusicOnHoldController::class, 'index'])->name('music-on-hold.index');
+    Route::get('music-on-hold/{music_on_hold}/files/{file}', [MusicOnHoldController::class, 'download'])
+        ->where('file', '[^/]+')
+        ->name('music-on-hold.files.download');
+
     // SIP Status
     Route::get('sip-status', [SipStatusController::class, 'index'])->name('sip-status.index');
 
@@ -218,6 +226,9 @@ Route::group(['middleware' => 'auth'], function () {
 
     // Bridges
     Route::get('bridges', [BridgeController::class, 'index'])->name('bridges.index');
+
+    // Call Blocks
+    Route::get('call-blocks', [CallBlockController::class, 'index'])->name('call-blocks.index');
 
     // Call Flows
     Route::get('call-flows', [CallFlowController::class, 'index'])->name('call-flows.index');

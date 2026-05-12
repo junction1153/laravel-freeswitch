@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\LocationsController;
 use App\Http\Controllers\Api\ProvisioningTemplateController;
 use App\Http\Controllers\BusinessHoursController;
 use App\Http\Controllers\BridgeController;
+use App\Http\Controllers\CallBlockController;
 use App\Http\Controllers\CallFlowController;
 use App\Http\Controllers\CallTranscriptionController;
 use App\Http\Controllers\CdrsController;
@@ -44,6 +45,7 @@ use App\Http\Controllers\HotelRoomStatusController;
 use App\Http\Controllers\InboundWebhooksController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\MessageSettingsController;
+use App\Http\Controllers\MusicOnHoldController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PaymentGatewayController;
 use App\Http\Controllers\PhoneNumbersController;
@@ -341,6 +343,15 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     Route::post('/bridges/bulk-delete', [BridgeController::class, 'bulkDelete'])->name('bridges.bulk.delete');
     Route::post('/bridges/bulk-toggle', [BridgeController::class, 'bulkToggle'])->name('bridges.bulk.toggle');
 
+    // Call Blocks
+    Route::post('call-blocks', [CallBlockController::class, 'store'])->name('call-blocks.store');
+    Route::put('call-blocks/{call_block}', [CallBlockController::class, 'update'])->name('call-blocks.update');
+    Route::get('/call-blocks/data', [CallBlockController::class, 'getData'])->name('call-blocks.data');
+    Route::post('/call-blocks/item-options', [CallBlockController::class, 'getItemOptions'])->name('call-blocks.item.options');
+    Route::post('/call-blocks/select-all', [CallBlockController::class, 'selectAll'])->name('call-blocks.select.all');
+    Route::post('/call-blocks/bulk-delete', [CallBlockController::class, 'bulkDelete'])->name('call-blocks.bulk.delete');
+    Route::post('/call-blocks/bulk-toggle', [CallBlockController::class, 'bulkToggle'])->name('call-blocks.bulk.toggle');
+
     // Conference Centers
     Route::post('conference-centers', [ConferenceCenterController::class, 'store'])->name('conference-centers.store');
     Route::put('conference-centers/{conference_center}', [ConferenceCenterController::class, 'update'])->name('conference-centers.update');
@@ -349,6 +360,17 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     Route::post('/conference-centers/select-all', [ConferenceCenterController::class, 'selectAll'])->name('conference-centers.select.all');
     Route::post('/conference-centers/bulk-delete', [ConferenceCenterController::class, 'bulkDelete'])->name('conference-centers.bulk.delete');
     Route::post('/conference-centers/bulk-toggle', [ConferenceCenterController::class, 'bulkToggle'])->name('conference-centers.bulk.toggle');
+
+    // Music on Hold
+    Route::post('music-on-hold', [MusicOnHoldController::class, 'store'])->name('music-on-hold.store');
+    Route::put('music-on-hold/{music_on_hold}', [MusicOnHoldController::class, 'update'])->name('music-on-hold.update');
+    Route::get('/music-on-hold/data', [MusicOnHoldController::class, 'getData'])->name('music-on-hold.data');
+    Route::post('/music-on-hold/item-options', [MusicOnHoldController::class, 'getItemOptions'])->name('music-on-hold.item.options');
+    Route::post('/music-on-hold/select-all', [MusicOnHoldController::class, 'selectAll'])->name('music-on-hold.select.all');
+    Route::post('/music-on-hold/bulk-delete', [MusicOnHoldController::class, 'bulkDelete'])->name('music-on-hold.bulk.delete');
+    Route::post('/music-on-hold/upload', [MusicOnHoldController::class, 'upload'])->name('music-on-hold.upload');
+    Route::post('/music-on-hold/files/delete', [MusicOnHoldController::class, 'deleteFile'])->name('music-on-hold.files.delete');
+    Route::post('/music-on-hold/reload', [MusicOnHoldController::class, 'reload'])->name('music-on-hold.reload');
 
     // Conferences
     Route::post('conferences', [ConferenceController::class, 'store'])->name('conferences.store');
