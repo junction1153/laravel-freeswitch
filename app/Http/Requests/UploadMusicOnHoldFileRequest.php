@@ -18,7 +18,7 @@ class UploadMusicOnHoldFileRequest extends FormRequest
             'music_on_hold_uuid' => ['nullable', 'uuid', 'required_without:music_on_hold_name'],
             'music_on_hold_name' => ['nullable', 'string', 'max:255', 'required_without:music_on_hold_uuid'],
             'domain_uuid' => ['nullable', 'uuid'],
-            'music_on_hold_rate' => ['nullable', Rule::in(['8000', '16000', '32000', '48000'])],
+            'music_on_hold_rate' => ['nullable', Rule::in(['8000', '16000'])],
             'file' => ['required', 'file', 'extensions:wav,mp3,ogg'],
         ];
     }
@@ -26,7 +26,7 @@ class UploadMusicOnHoldFileRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'domain_uuid' => userCheckPermission('music_on_hold_domain') ? $this->blankToNull($this->input('domain_uuid')) : session('domain_uuid'),
+            'domain_uuid' => session('domain_uuid'),
             'music_on_hold_rate' => $this->blankToNull($this->input('music_on_hold_rate')),
             'music_on_hold_name' => $this->blankToNull($this->input('music_on_hold_name')),
             'music_on_hold_uuid' => $this->blankToNull($this->input('music_on_hold_uuid')),
@@ -41,6 +41,6 @@ class UploadMusicOnHoldFileRequest extends FormRequest
 
         $value = trim((string) $value);
 
-        return $value === '' ? null : $value;
+        return in_array($value, ['', '__global__'], true) ? null : $value;
     }
 }

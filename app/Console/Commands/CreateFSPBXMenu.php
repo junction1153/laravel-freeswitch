@@ -138,7 +138,6 @@ class CreateFSPBXMenu extends Command
                 'subcategories' => [
                     ['title' => 'Active Calls', 'link' => '/active-calls', 'groups' => ['superadmin', 'admin']],
                     ['title' => 'Active Conferences', 'link' => '/active-conferences', 'groups' => ['superadmin', 'admin']],
-                    ['title' => 'Active Queues', 'link' => '/app/fifo_list/fifo_list.php', 'groups' => ['superadmin', 'admin']],
                     ['title' => 'Extension Statistics', 'link' => '/extension-statistics', 'groups' => ['superadmin', 'admin']],
                     ['title' => 'Firewall', 'link' => '/firewall', 'groups' => ['superadmin']],
                     ['title' => 'Logs', 'link' => '/logs', 'groups' => ['superadmin']],
@@ -161,7 +160,7 @@ class CreateFSPBXMenu extends Command
                     ['title' => 'Group Manager', 'link' => '/groups', 'groups' => ['superadmin']],
                     ['title' => 'Menu Manager', 'link' => '/core/menu/menu.php', 'groups' => ['superadmin']],
                     ['title' => 'Message Settings', 'link' => '/message-settings', 'groups' => ['superadmin']],
-                    ['title' => 'Modules', 'link' => '/app/modules/modules.php', 'groups' => ['superadmin']],
+                    ['title' => 'Modules', 'link' => '/modules', 'groups' => ['superadmin']],
                     ['title' => 'Pro Features', 'link' => '/pro-features', 'groups' => ['superadmin']],
                     ['title' => 'Provision Templates', 'link' => '/app/edit/index.php?dir=provision', 'groups' => ['superadmin']],
                     ['title' => 'Ringotel App Settings', 'link' => '/apps', 'groups' => ['superadmin', 'admin']],

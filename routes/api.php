@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\EmergencyCallController;
 use App\Http\Controllers\Api\HolidayHoursController;
 use App\Http\Controllers\Api\LocationsController;
 use App\Http\Controllers\Api\ProvisioningTemplateController;
+use App\Http\Controllers\BasicQueueController;
 use App\Http\Controllers\BusinessHoursController;
 use App\Http\Controllers\BridgeController;
 use App\Http\Controllers\CallBlockController;
@@ -53,6 +54,7 @@ use App\Http\Controllers\RecordingsManagerController;
 use App\Http\Controllers\RingGroupsController;
 use App\Http\Controllers\SipStatusController;
 use App\Http\Controllers\SpeedDialController;
+use App\Http\Controllers\SwitchModuleController;
 use App\Http\Controllers\SystemController;
 use App\Http\Controllers\SystemSettingsController;
 use App\Http\Controllers\TokenController;
@@ -97,6 +99,23 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     // Email logs
     Route::resource('/email-logs', EmailLogsController::class);
     Route::post('/email-logs/retry', [EmailLogsController::class, 'retry'])->name('email-logs.retry');
+
+    // Basic Queue
+    Route::get('/basic-queues/queues/data', [BasicQueueController::class, 'getQueueData'])->name('basic-queues.queues.data');
+    Route::post('/basic-queues/queues', [BasicQueueController::class, 'storeQueue'])->name('basic-queues.queues.store');
+    Route::put('/basic-queues/queues/{queue}', [BasicQueueController::class, 'updateQueue'])->name('basic-queues.queues.update');
+    Route::post('/basic-queues/queues/item-options', [BasicQueueController::class, 'getQueueItemOptions'])->name('basic-queues.queues.item.options');
+    Route::post('/basic-queues/queues/select-all', [BasicQueueController::class, 'selectAllQueues'])->name('basic-queues.queues.select.all');
+    Route::post('/basic-queues/queues/bulk-delete', [BasicQueueController::class, 'bulkDeleteQueues'])->name('basic-queues.queues.bulk.delete');
+    Route::get('/basic-queues/agents/data', [BasicQueueController::class, 'getAgentData'])->name('basic-queues.agents.data');
+    Route::post('/basic-queues/agents', [BasicQueueController::class, 'storeAgent'])->name('basic-queues.agents.store');
+    Route::put('/basic-queues/agents/{agent}', [BasicQueueController::class, 'updateAgent'])->name('basic-queues.agents.update');
+    Route::post('/basic-queues/agents/item-options', [BasicQueueController::class, 'getAgentItemOptions'])->name('basic-queues.agents.item.options');
+    Route::post('/basic-queues/agents/select-all', [BasicQueueController::class, 'selectAllAgents'])->name('basic-queues.agents.select.all');
+    Route::post('/basic-queues/agents/bulk-delete', [BasicQueueController::class, 'bulkDeleteAgents'])->name('basic-queues.agents.bulk.delete');
+    Route::get('/basic-queues/agents/status/data', [BasicQueueController::class, 'getAgentStatusData'])->name('basic-queues.agents.status.data');
+    Route::post('/basic-queues/agents/status', [BasicQueueController::class, 'updateAgentStatus'])->name('basic-queues.agents.status.update');
+    Route::get('/active-basic-queues/data', [BasicQueueController::class, 'getActiveBasicQueueData'])->name('active-basic-queues.data');
 
     // Inbound Webhooks
     Route::resource('/inbound-webhooks', InboundWebhooksController::class);
@@ -371,6 +390,14 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     Route::post('/music-on-hold/upload', [MusicOnHoldController::class, 'upload'])->name('music-on-hold.upload');
     Route::post('/music-on-hold/files/delete', [MusicOnHoldController::class, 'deleteFile'])->name('music-on-hold.files.delete');
     Route::post('/music-on-hold/reload', [MusicOnHoldController::class, 'reload'])->name('music-on-hold.reload');
+
+    // Modules
+    Route::get('/modules/data', [SwitchModuleController::class, 'getData'])->name('modules.data');
+    Route::post('/modules/select-all', [SwitchModuleController::class, 'selectAll'])->name('modules.select.all');
+    Route::post('/modules/bulk-start', [SwitchModuleController::class, 'bulkStart'])->name('modules.bulk.start');
+    Route::post('/modules/bulk-stop', [SwitchModuleController::class, 'bulkStop'])->name('modules.bulk.stop');
+    Route::post('/modules/bulk-toggle', [SwitchModuleController::class, 'bulkToggle'])->name('modules.bulk.toggle');
+    Route::post('/modules/bulk-delete', [SwitchModuleController::class, 'bulkDelete'])->name('modules.bulk.delete');
 
     // Conferences
     Route::post('conferences', [ConferenceController::class, 'store'])->name('conferences.store');

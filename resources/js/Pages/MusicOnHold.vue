@@ -94,7 +94,12 @@
             <template #table-header>
                 <TableColumnHeader class="px-4 py-3.5 text-left text-sm font-semibold text-gray-900">
                     <div class="flex items-center">
-                        <input v-model="selectPageItems" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600" />
+                        <input
+                            v-model="selectPageItems"
+                            type="checkbox"
+                            :disabled="selectablePageIds.length === 0"
+                            class="h-4 w-4 rounded border-gray-300 text-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        />
                         <button class="ml-4 flex items-center" @click="setSort('music_on_hold_name')">
                             <span class="mr-2">Name</span>
                             <ChevronUpIcon v-if="sortData.name === 'music_on_hold_name' && sortData.order === 'asc'" class="h-4 w-4 text-gray-500" />
@@ -136,13 +141,19 @@
                     <tr>
                         <TableField class="px-4 py-2 text-sm text-gray-500">
                             <div class="flex items-center">
-                                <input v-model="selectedItems" type="checkbox" :value="row.music_on_hold_uuid" class="h-4 w-4 rounded border-gray-300 text-indigo-600" />
+                                <input
+                                    v-model="selectedItems"
+                                    type="checkbox"
+                                    :value="row.music_on_hold_uuid"
+                                    :disabled="!row.can_modify"
+                                    class="h-4 w-4 rounded border-gray-300 text-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                />
                                 <div class="ml-4 min-w-0">
                                     <button
                                         type="button"
                                         class="font-medium text-gray-900"
-                                        :class="{ 'cursor-pointer hover:text-indigo-600': permissions.update }"
-                                        @click="permissions.update && openEditForm(row.music_on_hold_uuid)"
+                                        :class="{ 'cursor-pointer hover:text-indigo-600': permissions.update && row.can_modify }"
+                                        @click="permissions.update && row.can_modify && openEditForm(row.music_on_hold_uuid)"
                                     >
                                         {{ row.music_on_hold_name }}
                                     </button>
@@ -167,7 +178,7 @@
                             <template #action-buttons>
                                 <div class="flex items-center justify-end gap-1">
                                     <button
-                                        v-if="permissions.update"
+                                        v-if="permissions.update && row.can_modify"
                                         type="button"
                                         class="rounded-full p-2 text-gray-400 transition hover:bg-gray-200 hover:text-gray-600"
                                         title="Edit"
@@ -176,7 +187,7 @@
                                         <PencilSquareIcon class="h-5 w-5" />
                                     </button>
                                     <button
-                                        v-if="permissions.destroy"
+                                        v-if="permissions.destroy && row.can_modify"
                                         type="button"
                                         class="rounded-full p-2 text-gray-400 transition hover:bg-gray-200 hover:text-gray-600"
                                         title="Delete"
@@ -212,7 +223,7 @@
                                                     <ArrowDownTrayIcon class="h-5 w-5" />
                                                 </button>
                                                 <button
-                                                    v-if="permissions.destroy"
+                                                    v-if="permissions.destroy && row.can_modify"
                                                     type="button"
                                                     class="rounded-full p-2 text-gray-400 transition hover:bg-gray-200 hover:text-gray-600"
                                                     title="Delete"
@@ -424,8 +435,12 @@
                                 v-model="selectedItems"
                                 type="checkbox"
                                 :value="row.music_on_hold_uuid"
+                                :disabled="!row.can_modify"
                                 :class="[
                                     'h-4 w-4 rounded border-gray-300 text-indigo-600 transition',
+                                    !row.can_modify
+                                        ? 'cursor-not-allowed opacity-0'
+                                        : '',
                                     selectedItems.includes(row.music_on_hold_uuid)
                                         ? 'opacity-100'
                                         : 'opacity-0 group-hover:opacity-100 focus:opacity-100',
@@ -435,7 +450,7 @@
 
                         <div class="absolute right-3 top-3 z-10 flex items-center gap-1 opacity-0 transition group-hover:opacity-100" @click.stop>
                             <button
-                                v-if="permissions.update"
+                                v-if="permissions.update && row.can_modify"
                                 type="button"
                                 class="rounded-full bg-white/80 p-1.5 text-gray-500 shadow-sm hover:bg-white hover:text-indigo-600"
                                 title="Edit"
@@ -444,7 +459,7 @@
                                 <PencilSquareIcon class="h-4 w-4" />
                             </button>
                             <button
-                                v-if="permissions.destroy"
+                                v-if="permissions.destroy && row.can_modify"
                                 type="button"
                                 class="rounded-full bg-white/80 p-1.5 text-gray-500 shadow-sm hover:bg-white hover:text-red-600"
                                 title="Delete"
@@ -535,6 +550,7 @@
         :mode="formMode"
         :routes="routes"
         :options="itemOptions"
+        :permissions="permissions"
         @close="closeForm"
         @error="handleError"
         @success="showNotification"
@@ -555,12 +571,8 @@
                     :columns="{ container: 12, sm: 6 }" :error="formErrors.music_on_hold_name?.[0]"
                     :conditions="[() => !selectedUploadStreamUuid]" />
 
-                <SelectElement name="music_on_hold_rate" :items="itemOptions.rates" label="Rate"
-                    :native="false" :floating="false" :columns="{ container: 12, sm: 6 }"
-                    :conditions="[() => !selectedUploadStreamUuid]" />
-
                 <FileElement name="file" label="Audio File" accept=".wav,.mp3,.ogg"
-                    description="Supported formats: WAV, MP3, or OGG" :upload-temp-endpoint="false"
+                    description="The file will be converted to mono WAV at 8 and 16 kHz." :upload-temp-endpoint="false"
                     :remove-temp-endpoint="false" :remove-endpoint="false" :drop="true"
                     :error="formErrors.file?.[0]" @change="handleVueformFileUpload"
                     :columns="{ container: 12 }" />
@@ -757,10 +769,12 @@ const uploadDefaultValues = computed(() => ({
     domain_uuid: itemOptions.value.current_domain_uuid
         ?? itemOptions.value.domains.find((domain) => domain.value)?.value
         ?? null,
-    music_on_hold_rate: "",
 }));
 
 const selectedUploadStreamUuid = computed(() => uploadForm$.value?.data?.music_on_hold_uuid ?? "");
+const selectablePageIds = computed(() => data.value.data
+    .filter((item) => item.can_modify)
+    .map((item) => item.music_on_hold_uuid));
 
 const bulkActions = computed(() => {
     if (!permissions.destroy) {
@@ -772,18 +786,16 @@ const bulkActions = computed(() => {
 
 const selectPageItems = computed({
     get() {
-        return data.value.data.length > 0
-            && data.value.data.every((item) => selectedItems.value.includes(item.music_on_hold_uuid));
+        return selectablePageIds.value.length > 0
+            && selectablePageIds.value.every((id) => selectedItems.value.includes(id));
     },
     set(value) {
-        const currentPageIds = data.value.data.map((item) => item.music_on_hold_uuid);
-
         if (value) {
-            selectedItems.value = Array.from(new Set([...selectedItems.value, ...currentPageIds]));
+            selectedItems.value = Array.from(new Set([...selectedItems.value, ...selectablePageIds.value]));
             return;
         }
 
-        selectedItems.value = selectedItems.value.filter((id) => !currentPageIds.includes(id));
+        selectedItems.value = selectedItems.value.filter((id) => !selectablePageIds.value.includes(id));
         selectAll.value = false;
     },
 });
@@ -969,7 +981,6 @@ const submitUpload = () => {
     requestData.append("music_on_hold_uuid", uploadData.music_on_hold_uuid || "");
     requestData.append("music_on_hold_name", uploadData.music_on_hold_name || "");
     requestData.append("domain_uuid", uploadData.domain_uuid || "");
-    requestData.append("music_on_hold_rate", uploadData.music_on_hold_rate || "");
     if (uploadFile.value) {
         requestData.append("file", uploadFile.value);
     }

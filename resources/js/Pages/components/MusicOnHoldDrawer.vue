@@ -42,7 +42,7 @@
                                             </div>
                                             <div class="flex shrink-0 items-center gap-1">
                                                 <button
-                                                    v-if="permissions.update"
+                                                    v-if="permissions.update && stream?.can_modify"
                                                     type="button"
                                                     class="rounded-full p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
                                                     title="Edit stream"
@@ -51,7 +51,7 @@
                                                     <PencilSquareIcon class="h-5 w-5" />
                                                 </button>
                                                 <button
-                                                    v-if="permissions.destroy"
+                                                    v-if="permissions.destroy && stream?.can_modify"
                                                     type="button"
                                                     class="rounded-full p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
                                                     title="Delete stream"
@@ -118,10 +118,10 @@
                                                             ? 'bg-indigo-600 text-white hover:bg-indigo-500'
                                                             : 'text-indigo-500 hover:bg-indigo-100 hover:text-indigo-700',
                                                     ]"
-                                                    title="Play"
+                                                    title="Select file"
                                                     @click="setActiveFile(file)"
                                                 >
-                                                    <PlayIcon class="h-4 w-4" />
+                                                    <MusicalNoteIcon class="h-4 w-4" />
                                                 </button>
                                                 <button
                                                     type="button"
@@ -142,7 +142,7 @@
                                                     <ArrowDownTrayIcon class="h-4 w-4" />
                                                 </button>
                                                 <button
-                                                    v-if="permissions.destroy"
+                                                    v-if="permissions.destroy && stream?.can_modify"
                                                     type="button"
                                                     class="rounded-full p-1.5 text-gray-400 transition hover:bg-gray-200 hover:text-gray-600"
                                                     title="Delete"
@@ -159,7 +159,7 @@
                                         </div>
                                     </div>
 
-                                    <div v-if="permissions.create" class="border-t border-gray-200 bg-white px-6 py-4">
+                                    <div v-if="permissions.create && stream?.can_modify" class="border-t border-gray-200 bg-white px-6 py-4">
                                         <button
                                             type="button"
                                             class="flex w-full items-center justify-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
@@ -187,7 +187,6 @@ import {
     ArrowUpTrayIcon,
     MusicalNoteIcon,
     PencilSquareIcon,
-    PlayIcon,
     TrashIcon,
     XMarkIcon,
 } from "@heroicons/vue/24/solid";
