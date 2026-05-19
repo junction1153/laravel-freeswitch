@@ -28,6 +28,9 @@ app/provision/.gitkeep
 # Scribe generated docs/cache
 .scribe/
 
+resources/freeswitch_scripts/jc_custom
+resources/freeswitch_scripts/jc_custom/*
+
 #codex
 .codex/
 .agents/
