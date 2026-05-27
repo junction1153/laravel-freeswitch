@@ -157,8 +157,8 @@ class EmailChallengeController extends Controller
             $two_factor_cookie = md5($request->header('User-Agent') . ' ' . $request->ip());
             $two_factor_cookies[] = $two_factor_cookie;
 
-            // Limit the array to the last 3 cookies
-            if (count($two_factor_cookies) > 3) {
+            // Limit the array to the last 6 cookies
+            if (count($two_factor_cookies) > 6) {
                 array_shift($two_factor_cookies);
             }
 
