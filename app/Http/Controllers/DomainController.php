@@ -38,6 +38,10 @@ class DomainController extends Controller
         return Inertia::render(
             $this->viewName,
             [
+                'pagination' => [
+                    'per_page' => fspbx_pagination_per_page(),
+                    'per_page_options' => fspbx_pagination_options(),
+                ],
 
                 'routes' => [
                     // 'current_page' => route('devices.index'),
@@ -45,6 +49,7 @@ class DomainController extends Controller
                     // 'store' => route('devices.store'),
                     // 'select_all' => route('devices.select.all'),
                     'bulk_delete' => route('domains.bulk.delete'),
+                    'domain_settings' => route('domains.settings.index', ['domain' => '__DOMAIN__']),
                     // 'bulk_update' => route('devices.bulk.update'),
                     'item_options' => route('domains.item.options'),
                     // 'restart' => route('devices.restart'),
@@ -63,7 +68,7 @@ class DomainController extends Controller
 
     public function getData()
     {
-        $perPage = 50;
+        $perPage = fspbx_pagination_per_page();
 
         $items = QueryBuilder::for(Domain::class)
             ->select([
@@ -465,6 +470,7 @@ class DomainController extends Controller
         $permissions['domain_create'] = userCheckPermission('domain_add');
         $permissions['domain_update'] = userCheckPermission('domain_edit');
         $permissions['domain_destroy'] = userCheckPermission('domain_delete');
+        $permissions['domain_settings_view'] = userCheckPermission('domain_setting_view');
 
         return $permissions;
     }

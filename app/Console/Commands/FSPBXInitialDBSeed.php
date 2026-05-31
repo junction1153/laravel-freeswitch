@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Install\InstallSchema;
 use App\Models\DefaultSettings;
 use App\Models\User;
 use App\Models\UserSetting;
@@ -24,9 +25,13 @@ class FSPBXInitialDBSeed extends Command
     public function handle()
     {
         $this->info('Seeding Database ...');
+        $installSchema = app(InstallSchema::class);
 
         // Step 1: Run Upgrade Schema
         $this->runUpgradeSchema();
+        $this->info("Ensuring FS PBX install schemas...");
+        $installSchema->ensureSchemas();
+        $this->info("FS PBX install schemas are ready.");
 
         // Step 2: Create the Admin Domain
         $domain = Domain::firstOrCreate(
@@ -89,17 +94,17 @@ class FSPBXInitialDBSeed extends Command
         // Ensure default user settings are present
         $this->createUserSettings($user, $domain->domain_uuid);
 
-        // Create symlink if it doesn't exist
-        $this->createSymlink('/var/www/fspbx/resources/lua', '/usr/share/freeswitch/scripts/lua');
-
-        // Set proper ownership and permissions
-        $this->setOwnershipAndPermissions('/var/www/fspbx/resources/lua');
-
         // Step 6: Run Upgrade Defaults
         $this->runUpgradeDefaults();
+        $this->info("Ensuring FS PBX install metadata...");
+        $installSchema->ensureMetadata();
+        $this->info("FS PBX install metadata is ready.");
 
         // Step 6a: configure Reverb
         $this->configureReverb();
+
+        // Create FreeSWITCH scripts symlink
+        $this->createFreeSwitchScriptsSymlink();
 
         // Step 7: Run Additional Laravel Commands
         $this->info("Caching configuration...");
@@ -172,6 +177,39 @@ class FSPBXInitialDBSeed extends Command
 
         return 0;
     }
+
+        // Freeswitch Scripts Directory
+        protected function createFreeSwitchScriptsSymlink(): void
+        {
+            $target = '/var/www/fspbx/resources/freeswitch_scripts';
+            $link = '/usr/share/freeswitch/scripts';
+
+            $this->info('Creating FreeSWITCH scripts symlink...');
+
+            if (!is_dir($target)) {
+                throw new \RuntimeException("FreeSWITCH scripts target directory does not exist: {$target}");
+            }
+
+            if (file_exists($link) || is_link($link)) {
+                $removeProcess = new Process(['rm', '-rf', $link]);
+                $removeProcess->run();
+
+                if (!$removeProcess->isSuccessful()) {
+                    throw new ProcessFailedException($removeProcess);
+                }
+            }
+
+            $linkProcess = new Process(['ln', '-s', $target, $link]);
+            $linkProcess->run();
+
+            if (!$linkProcess->isSuccessful()) {
+                $this->error('Error occurred while creating FreeSWITCH scripts symlink.');
+                throw new ProcessFailedException($linkProcess);
+            }
+
+            $this->info('FreeSWITCH scripts symlink created successfully.');
+
+        }
 
     private function configureReverb()
     {
@@ -355,8 +393,21 @@ class FSPBXInitialDBSeed extends Command
     private function updatePermissions()
     {
         $directory = base_path();
+        $scriptsTarget = '/var/www/fspbx/resources/freeswitch_scripts';
+        $scriptsLink = '/usr/share/freeswitch/scripts';
+
         $this->info("Updating ownership for $directory...");
-        shell_exec("chown -R www-data:www-data $directory");
+
+        shell_exec("chown -R www-data:www-data " . escapeshellarg($directory));
+
+        if (is_dir($scriptsTarget)) {
+            shell_exec("chown -R www-data:www-data " . escapeshellarg($scriptsTarget));
+        }
+
+        if (is_link($scriptsLink)) {
+            shell_exec("chown -h www-data:www-data " . escapeshellarg($scriptsLink));
+        }
+
         $this->info("Permissions updated successfully.");
     }
 
@@ -473,13 +524,14 @@ class FSPBXInitialDBSeed extends Command
             echo "⚠️ Failed to change ownership for $path\n";
         }
 
-        // Change permissions to 755
-        $chmodProcess = new Process(['chmod', '-R', '755', $path]);
-        $chmodProcess->run();
-        if ($chmodProcess->isSuccessful()) {
-            echo "✅ Permissions set to 755 for $path\n";
+        // Directories need execute permission for traversal. Leave file modes as tracked.
+        $directoryPermissionsProcess = new Process(['find', $path, '-type', 'd', '-exec', 'chmod', '755', '{}', '+']);
+        $directoryPermissionsProcess->run();
+
+        if ($directoryPermissionsProcess->isSuccessful()) {
+            echo "✅ Directory permissions set to 755 for $path\n";
         } else {
-            echo "⚠️ Failed to change permissions for $path\n";
+            echo "⚠️ Failed to set permissions for $path\n";
         }
     }
 

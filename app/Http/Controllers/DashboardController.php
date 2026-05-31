@@ -55,6 +55,7 @@ class DashboardController extends Controller
                     'data_route' => route('dashboard.data'),
                     'counts_route' => route('dashboard.counts'),
                     'my_extension_status_route' => route('dashboard.my-extension-status'),
+                    'customer_notes_route' => route('dashboard.customer-notes'),
                     'extension_item_options' => route('extensions.item.options'),
                 ]
             ]
@@ -67,7 +68,7 @@ class DashboardController extends Controller
         $permissions['extension_view'] = userCheckPermission('extension_view');
         $permissions['account_settings_index'] = userCheckPermission('account_settings_list_view');
 
-        return $permissions;
+        return array_merge($permissions, CustomerNotesController::permissionFlags());
     }
 
     public function getCounts()
@@ -205,8 +206,11 @@ class DashboardController extends Controller
         }
 
         //Wakeup Calls Count
-        if (userCheckPermission("wakeup_calls_list_view")) {
+        if (userCheckPermission("wakeup_calls_list_view") && (userCheckPermission('wakeup_calls_view_all_records') || userCheckPermission('wakeup_calls_all') || userCheckPermission('wakeup_calls_view_self_records'))) {
             $counts['wakeup_calls'] = WakeupCall::where('domain_uuid', $domain_uuid)
+                ->when(!userCheckPermission('wakeup_calls_view_all_records') && !userCheckPermission('wakeup_calls_all'), function ($query) {
+                    $query->where('extension_uuid', optional(auth()->user())->extension_uuid);
+                })
                 ->count();
         }
 
@@ -493,7 +497,7 @@ class DashboardController extends Controller
         if (userCheckPermission("whitelisted_numbers_list_view")) {
             $apps[] = ['name' => 'Whitelisted Numbers', 'href' => route('whitelisted-numbers.index'), 'icon' => 'HeartIcon', 'slug' => 'whitelisted_numbers'];
         }
-        if (userCheckPermission("wakeup_calls_list_view")) {
+        if (userCheckPermission("wakeup_calls_list_view") && (userCheckPermission('wakeup_calls_view_all_records') || userCheckPermission('wakeup_calls_all') || userCheckPermission('wakeup_calls_view_self_records'))) {
             $apps[] = ['name' => 'Wakeup Calls', 'href' => route('wakeup-calls.index'), 'icon' => 'ClockIcon', 'slug' => 'wakeup_calls'];
         }
 

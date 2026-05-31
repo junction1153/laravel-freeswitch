@@ -101,8 +101,8 @@
 
                     <TableField class="px-2 py-2 text-sm flex-col sm:flex-row gap-2">
 
-                        <template v-if="page.props.auth.can.fax_sent_view">
-                            <a :href="`/core/domain_settings/domain_settings.php?id=${row.domain_uuid}`"
+                        <template v-if="permissions.domain_settings_view">
+                            <a :href="routes.domain_settings.replace('__DOMAIN__', row.domain_uuid)"
                                 class="inline-flex items-center px-2 py-1 rounded text-gray-700 hover:bg-gray-100 transition text-xs font-medium"
                                 title="Settings">
                                 <SettingsApplications class="w-4 h-4 mr-1" />
@@ -167,7 +167,9 @@
             <template #footer>
                 <Paginator :previous="data.prev_page_url" :next="data.next_page_url" :from="data.from" :to="data.to"
                     :total="data.total" :currentPage="data.current_page" :lastPage="data.last_page" :links="data.links"
-                    @pagination-change-page="renderRequestedPage" />
+                    :page-size="perPage" :page-size-options="props.pagination?.per_page_options ?? []"
+                    :show-page-size-selector="true"
+                    @pagination-change-page="renderRequestedPage" @page-size-change="handlePageSizeChange" />
             </template>
         </DataTable>
         <div class="px-4 sm:px-6 lg:px-8"></div>
@@ -252,7 +254,10 @@ const data = ref({
 const props = defineProps({
     routes: Object,
     permissions: Object,
+    pagination: Object,
 });
+
+const perPage = ref(props.pagination?.per_page);
 
 
 onMounted(() => {
@@ -419,6 +424,7 @@ const getData = (page = 1) => {
         params: {
             filter: filterData.value,
             page: currentPage.value,
+            per_page: perPage.value,
             sort: sort, 
         }
     })
@@ -447,6 +453,11 @@ const handleFiltersReset = () => {
     getData(1);
 }
 
+
+const handlePageSizeChange = (newPerPage) => {
+    perPage.value = newPerPage;
+    getData(1);
+};
 
 const renderRequestedPage = (url) => {
     loading.value = true;

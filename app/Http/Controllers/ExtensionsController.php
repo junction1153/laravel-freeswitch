@@ -100,6 +100,10 @@ class ExtensionsController extends Controller
             $this->viewName,
             [
                 'permissions' => $permissions,
+                'pagination' => [
+                    'per_page' => fspbx_pagination_per_page(),
+                    'per_page_options' => fspbx_pagination_options(),
+                ],
 
                 'routes' => [
                     'current_page' => route('extensions.index'),
@@ -122,7 +126,7 @@ class ExtensionsController extends Controller
 
     public function getData()
     {
-        $perPage = 50;
+        $perPage = fspbx_pagination_per_page();
         $currentDomain = session('domain_uuid');
 
         if (!userCheckPermission('extension_view')) {
@@ -1171,9 +1175,12 @@ public function store(StoreExtensionRequest $request)
                         $q->where('domain_uuid', $currentDomain)
                             ->select('device_line_uuid', 'device_uuid', 'auth_id', 'domain_uuid')
                             ->with(['device' => function ($query) {
-                                $query->select('device_uuid', 'device_profile_uuid', 'device_address', 'device_template', 'device_template_uuid')
+                                $query->select('device_uuid', 'device_profile_uuid', 'device_key_template_uuid', 'device_address', 'device_template', 'device_template_uuid')
                                     ->with(['profile' => function ($profileQuery) {
                                         $profileQuery->select('device_profile_uuid', 'device_profile_name'); // Add fields as needed
+                                    }])
+                                    ->with(['keyTemplate' => function ($query) {
+                                        $query->select('device_key_template_uuid', 'name');
                                     }])
                                     ->with(['template' => function ($query) {
                                         $query->select('template_uuid', 'domain_uuid', 'vendor', 'name');

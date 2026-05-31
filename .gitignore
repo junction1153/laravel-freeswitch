@@ -24,6 +24,7 @@ modules_statuses.json
 app/provision/
 /app/provision/
 app/provision/.gitkeep
+resources/freeswitch_scripts/custom/*
 
 # Scribe generated docs/cache
 .scribe/
