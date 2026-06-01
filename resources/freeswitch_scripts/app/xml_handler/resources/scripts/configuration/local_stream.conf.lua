@@ -40,10 +40,11 @@
 			xml:append([[		<configuration name="local_stream.conf" description="stream files from local dir">]]);
 
 		--run the query
-			sql = "select d.domain_name, s.* "
-			sql = sql .. "from v_music_on_hold as s left outer join v_domains as d "
-			sql = sql .. "on d.domain_uuid = s.domain_uuid "
-			sql = sql .. "order by d.domain_name asc, s.music_on_hold_name asc, s.music_on_hold_rate asc "
+		sql = "select d.domain_name, s.* "
+		sql = sql .. "from v_music_on_hold as s left outer join v_domains as d "
+		sql = sql .. "on d.domain_uuid = s.domain_uuid "
+		sql = sql .. "where s.music_on_hold_rate = 8000 "
+		sql = sql .. "order by d.domain_name asc, s.music_on_hold_name asc, s.music_on_hold_rate asc "
 			if (debug["sql"]) then
 				freeswitch.consoleLog("notice", "[xml_handler] SQL: " .. sql .. "\n");
 			end
