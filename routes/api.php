@@ -57,6 +57,7 @@ use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PaymentGatewayController;
 use App\Http\Controllers\PhoneNumbersController;
 use App\Http\Controllers\ProvisioningController;
+use App\Http\Controllers\RegistrationsController;
 use App\Http\Controllers\RecordingsManagerController;
 use App\Http\Controllers\RingGroupsController;
 use App\Http\Controllers\SipStatusController;
@@ -65,6 +66,7 @@ use App\Http\Controllers\SwitchModuleController;
 use App\Http\Controllers\SwitchVariableController;
 use App\Http\Controllers\SystemController;
 use App\Http\Controllers\SystemSettingsController;
+use App\Http\Controllers\TestEmailController;
 use App\Http\Controllers\TokenController;
 use App\Http\Controllers\UserLogsController;
 use App\Http\Controllers\UsersController;
@@ -110,6 +112,8 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     // Email logs
     Route::resource('/email-logs', EmailLogsController::class);
     Route::post('/email-logs/retry', [EmailLogsController::class, 'retry'])->name('email-logs.retry');
+    Route::get('/email-logs/{uuid}/delivery-details', [EmailLogsController::class, 'deliveryDetails'])->name('email-logs.delivery-details');
+    Route::post('/test-email-send', [TestEmailController::class, 'store'])->name('test-email-send.store');
 
     // FreeSWITCH logs
     Route::get('/freeswitch-logs', [FreeswitchLogController::class, 'index'])->name('freeswitch-logs.index');
@@ -356,6 +360,11 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     Route::post('/device-key-templates/bulk-delete', [DeviceKeyTemplateController::class, 'bulkDelete'])->name('device-key-templates.bulk.delete');
     Route::post('/devices/{device}/key-templates', [DeviceKeyTemplateController::class, 'storeFromDevice'])->name('devices.key-templates.store-from-device');
 
+    // Registrations
+    Route::get('/registrations/data', [RegistrationsController::class, 'getData'])->name('registrations.data');
+    Route::post('/registrations/select-all', [RegistrationsController::class, 'selectAll'])->name('registrations.select.all');
+    Route::post('/registrations/action', [RegistrationsController::class, 'handleAction'])->name('registrations.action');
+
     // Gateways
     Route::post('gateways', [GatewayController::class, 'store'])->name('gateways.store');
     Route::put('gateways/{gateway}', [GatewayController::class, 'update'])->name('gateways.update');
@@ -449,6 +458,7 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     Route::post('/music-on-hold/upload', [MusicOnHoldController::class, 'upload'])->name('music-on-hold.upload');
     Route::post('/music-on-hold/files/delete', [MusicOnHoldController::class, 'deleteFile'])->name('music-on-hold.files.delete');
     Route::post('/music-on-hold/reload', [MusicOnHoldController::class, 'reload'])->name('music-on-hold.reload');
+    Route::post('/music-on-hold/tenant-settings', [MusicOnHoldController::class, 'tenantSettings'])->name('music-on-hold.tenant-settings');
 
     // Modules
     Route::get('/modules/data', [SwitchModuleController::class, 'getData'])->name('modules.data');
@@ -647,6 +657,7 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     // System Settings
     Route::put('system-settings/update', [SystemSettingsController::class, 'update'])->name('system-settings.update');
     Route::get('system-settings/payment_gateways', [SystemSettingsController::class, 'getPaymentGatewayData'])->name('system-settings.payment_gateways');
+    Route::post('/gateways/test', [PaymentGatewayController::class, 'test'])->name('gateway.test');
 
     // System
     Route::get('system/data', [SystemController::class, 'data'])->name('system.data');
