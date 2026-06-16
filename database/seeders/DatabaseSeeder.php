@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use App\Models\PaymentGateway;
 use App\Models\GatewaySetting;
+use Illuminate\Support\Facades\Artisan;
+use Nwidart\Modules\Facades\Module;
 
 class DatabaseSeeder extends Seeder
 {
@@ -44,6 +46,22 @@ class DatabaseSeeder extends Seeder
         $this->createCallTranscriptionProviders();
 
         Model::reguard();
+
+        $this->runEnabledModuleSeeders();
+    }
+
+    private function runEnabledModuleSeeders(): void
+    {
+        foreach (['Billing'] as $moduleName) {
+            if (! Module::has($moduleName) || ! Module::isEnabled($moduleName)) {
+                continue;
+            }
+
+            Artisan::call('module:seed', [
+                'module' => $moduleName,
+                '--force' => true,
+            ]);
+        }
     }
 
     private function createGroups()
@@ -154,6 +172,7 @@ class DatabaseSeeder extends Seeder
             ['application_name' => 'Devices', 'permission_name' => 'device_key_template_update'],
             ['application_name' => 'Devices', 'permission_name' => 'device_key_template_delete'],
             ['application_name' => 'Devices', 'permission_name' => 'device_key_template_assign'],
+            ['application_name' => 'Devices', 'permission_name' => 'device_import'],
             ['application_name' => 'Devices', 'permission_name' => 'device_line_user_id'],
             ['application_name' => 'Devices', 'permission_name' => 'device_template_view_all'],
             ['application_name' => 'Devices', 'permission_name' => 'device_template_view_custom_only'],
@@ -273,6 +292,7 @@ class DatabaseSeeder extends Seeder
                 'device_key_template_update',
                 'device_key_template_delete',
                 'device_key_template_assign',
+                'device_import',
                 'device_template_view_all',
                 'device_provisioning_preview',
                 'device_line_server_address_primary',
