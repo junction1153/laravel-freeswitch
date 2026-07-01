@@ -25,6 +25,7 @@ app/provision/
 /app/provision/
 app/provision/.gitkeep
 resources/freeswitch_scripts/custom/*
+storage/app/private/polycom/*
 
 # Scribe generated docs/cache
 .scribe/
