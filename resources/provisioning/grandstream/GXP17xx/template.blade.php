@@ -1,4 +1,4 @@
-{{-- version: 1.1.6 --}}
+{{-- version: 1.1.9 --}}
 
 @switch($flavor)
 
@@ -6768,7 +6768,7 @@ PVALUES;
             } elseif (str_starts_with($assignment, '##')) {
                 $comment = trim($assignment);
             } else {
-                $comment = trim(preg_replace('/^#\s?/', '', $assignment));
+                $comment = trim(preg_replace('/^#\s?/', '# ', $assignment));
             }
 
             if ($comment !== '') {
@@ -6851,10 +6851,10 @@ PVALUES;
     }
 
     $accountCodes = [
-        1 => ['active' => 'P271', 'account' => 'P270', 'server' => 'P47',  'secondary' => 'P2312', 'outbound' => 'P48',  'backupOutbound' => 'P2333', 'blf' => 'P2375', 'user' => 'P35',  'auth' => 'P36',  'password' => 'P34',  'name' => 'P3',   'voicemail' => 'P33',  'dns' => 'P103', 'nat' => 'P52',  'register' => 'P31',  'expires' => 'P32',  'subscribe' => 'P26051', 'keepAlive' => 'P2397', 'keepInterval' => 'P2398', 'keepMaxLost' => 'P2399', 'localPort' => 'P40',  'retry' => 'P138', 'transport' => 'P130', 'mwi' => 'P99',  'srtp' => 'P183', 'dialPlan' => 'P290', 'features' => 'P191', 'xGrandstream' => 'P26054', 'pani' => 'P26058', 'pei' => 'P26059'],
-        2 => ['active' => 'P401', 'account' => 'P417', 'server' => 'P402', 'secondary' => 'P2412', 'outbound' => 'P403', 'backupOutbound' => 'P2433', 'blf' => 'P2475', 'user' => 'P404', 'auth' => 'P405', 'password' => 'P406', 'name' => 'P407', 'voicemail' => 'P426', 'dns' => 'P408', 'nat' => 'P414', 'register' => 'P410', 'expires' => 'P412', 'subscribe' => 'P26151', 'keepAlive' => 'P2497', 'keepInterval' => 'P2498', 'keepMaxLost' => 'P2499', 'localPort' => 'P413', 'retry' => 'P471', 'transport' => 'P448', 'mwi' => 'P415', 'srtp' => 'P443', 'dialPlan' => 'P459', 'features' => 'P420', 'xGrandstream' => 'P26154', 'pani' => 'P26158', 'pei' => 'P26159'],
-        3 => ['active' => 'P501', 'account' => 'P517', 'server' => 'P502', 'secondary' => 'P2512', 'outbound' => 'P503', 'backupOutbound' => 'P2533', 'blf' => 'P2575', 'user' => 'P504', 'auth' => 'P505', 'password' => 'P506', 'name' => 'P507', 'voicemail' => 'P526', 'dns' => 'P508', 'nat' => 'P514', 'register' => 'P510', 'expires' => 'P512', 'subscribe' => 'P26251', 'keepAlive' => 'P2597', 'keepInterval' => 'P2598', 'keepMaxLost' => 'P2599', 'localPort' => 'P513', 'retry' => 'P571', 'transport' => 'P548', 'mwi' => 'P515', 'srtp' => 'P543', 'dialPlan' => 'P559', 'features' => 'P520', 'xGrandstream' => 'P26254', 'pani' => 'P26258', 'pei' => 'P26259'],
-        4 => ['active' => 'P601', 'account' => 'P617', 'server' => 'P602', 'secondary' => 'P2612', 'outbound' => 'P603', 'backupOutbound' => 'P2633', 'blf' => 'P2675', 'user' => 'P604', 'auth' => 'P605', 'password' => 'P606', 'name' => 'P607', 'voicemail' => 'P626', 'dns' => 'P608', 'nat' => 'P614', 'register' => 'P610', 'expires' => 'P612', 'subscribe' => 'P26351', 'keepAlive' => 'P2697', 'keepInterval' => 'P2698', 'keepMaxLost' => 'P2699', 'localPort' => 'P613', 'retry' => 'P671', 'transport' => 'P648', 'mwi' => 'P615', 'srtp' => 'P643', 'dialPlan' => 'P659', 'features' => 'P620', 'xGrandstream' => 'P26354', 'pani' => 'P26358', 'pei' => 'P26359'],
+        1 => ['active' => 'P271', 'account' => 'P270', 'server' => 'P47', 'outbound' => 'P48',  'backupOutbound' => 'P2333', 'blf' => 'P2375', 'user' => 'P35',  'auth' => 'P36',  'password' => 'P34',  'name' => 'P3',   'voicemail' => 'P33',  'dns' => 'P103', 'nat' => 'P52',  'register' => 'P31',  'expires' => 'P32',  'subscribe' => 'P26051', 'keepAlive' => 'P2397', 'keepInterval' => 'P2398', 'keepMaxLost' => 'P2399', 'localPort' => 'P40',  'retry' => 'P138', 'transport' => 'P130', 'mwi' => 'P99',  'srtp' => 'P183', 'dialPlan' => 'P290', 'features' => 'P191', 'xGrandstream' => 'P26054', 'pani' => 'P26058', 'pei' => 'P26059'],
+        2 => ['active' => 'P401', 'account' => 'P417', 'server' => 'P402', 'outbound' => 'P403', 'backupOutbound' => 'P2433', 'blf' => 'P2475', 'user' => 'P404', 'auth' => 'P405', 'password' => 'P406', 'name' => 'P407', 'voicemail' => 'P426', 'dns' => 'P408', 'nat' => 'P414', 'register' => 'P410', 'expires' => 'P412', 'subscribe' => 'P26151', 'keepAlive' => 'P2497', 'keepInterval' => 'P2498', 'keepMaxLost' => 'P2499', 'localPort' => 'P413', 'retry' => 'P471', 'transport' => 'P448', 'mwi' => 'P415', 'srtp' => 'P443', 'dialPlan' => 'P459', 'features' => 'P420', 'xGrandstream' => 'P26154', 'pani' => 'P26158', 'pei' => 'P26159'],
+        3 => ['active' => 'P501', 'account' => 'P517', 'server' => 'P502', 'outbound' => 'P503', 'backupOutbound' => 'P2533', 'blf' => 'P2575', 'user' => 'P504', 'auth' => 'P505', 'password' => 'P506', 'name' => 'P507', 'voicemail' => 'P526', 'dns' => 'P508', 'nat' => 'P514', 'register' => 'P510', 'expires' => 'P512', 'subscribe' => 'P26251', 'keepAlive' => 'P2597', 'keepInterval' => 'P2598', 'keepMaxLost' => 'P2599', 'localPort' => 'P513', 'retry' => 'P571', 'transport' => 'P548', 'mwi' => 'P515', 'srtp' => 'P543', 'dialPlan' => 'P559', 'features' => 'P520', 'xGrandstream' => 'P26254', 'pani' => 'P26258', 'pei' => 'P26259'],
+        4 => ['active' => 'P601', 'account' => 'P617', 'server' => 'P602', 'outbound' => 'P603', 'backupOutbound' => 'P2633', 'blf' => 'P2675', 'user' => 'P604', 'auth' => 'P605', 'password' => 'P606', 'name' => 'P607', 'voicemail' => 'P626', 'dns' => 'P608', 'nat' => 'P614', 'register' => 'P610', 'expires' => 'P612', 'subscribe' => 'P26351', 'keepAlive' => 'P2697', 'keepInterval' => 'P2698', 'keepMaxLost' => 'P2699', 'localPort' => 'P613', 'retry' => 'P671', 'transport' => 'P648', 'mwi' => 'P615', 'srtp' => 'P643', 'dialPlan' => 'P659', 'features' => 'P620', 'xGrandstream' => 'P26354', 'pani' => 'P26358', 'pei' => 'P26359'],
     ];
 
     foreach ($accountCodes as $number => $codes) {
@@ -6875,7 +6875,6 @@ PVALUES;
 
         $set($codes['account'], $displayName);
         $set($codes['server'], $line['server_address'] ?? '');
-        $set($codes['secondary'], $line['server_address_secondary'] ?? '');
         $set($codes['outbound'], $outboundProxy . ($outboundProxy !== '' && $sipPort !== '' ? ':' . $sipPort : ''));
         $set($codes['backupOutbound'], $backupOutboundProxy . ($backupOutboundProxy !== '' && $sipPort !== '' ? ':' . $sipPort : ''));
         $set($codes['blf'], '');
@@ -6904,7 +6903,7 @@ PVALUES;
         $set($codes['pei'], '1');
     }
 
-    $vpkModeMap = [
+    $fixedVpkModeMap = [
         'none' => '-1',
         'line' => '0',
         'sharedline' => '1',
@@ -6919,6 +6918,23 @@ PVALUES;
         'call park' => '19',
         'intercom' => '20',
         'monitored call park' => '26',
+    ];
+
+    $dynamicVpkModeMap = [
+        'none' => '-1',
+        'line' => '-1',
+        'sharedline' => '-1',
+        'speed dial' => '0',
+        'blf' => '1',
+        'presence watcher' => '2',
+        'eventlist blf' => '3',
+        'speed dial via active account' => '4',
+        'dial dtmf' => '5',
+        'voicemail' => '6',
+        'transfer' => '8',
+        'call park' => '9',
+        'intercom' => '10',
+        'monitored call park' => '16',
     ];
 
     $vpkCodes = [
@@ -6939,7 +6955,8 @@ PVALUES;
     foreach ($vpkCodes as $slot => $codes) {
         $key = $mainKeyById->get($slot);
         $type = strtolower(trim((string) ($key['type'] ?? 'none')));
-        $set($codes['mode'], $vpkModeMap[$type] ?? '-1');
+        $modeMap = $slot <= 6 ? $fixedVpkModeMap : $dynamicVpkModeMap;
+        $set($codes['mode'], $modeMap[$type] ?? '-1');
         $set($codes['account'], max(0, (int) ($key['line'] ?? 0)));
         $set($codes['label'], $key['label'] ?? '');
         $set($codes['value'], $key['value'] ?? '');
