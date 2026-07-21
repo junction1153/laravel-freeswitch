@@ -171,9 +171,7 @@ class PhoneControlService
     ): Collection {
         $presenceId = $extension->extension . '@' . $domain->domain_name;
 
-        return $eslService->getAllChannels(false)
-            ->filter(fn (array $channel) => (string) ($channel['presence_id'] ?? '') === $presenceId)
-            ->values()
+        return $eslService->channelsForPresenceId($presenceId)
             ->map(function (array $channel) use ($eslService) {
                 $sipCallId = (string) $eslService->executeCommand(
                     'uuid_getvar ' . $channel['uuid'] . ' sip_call_id',
@@ -240,14 +238,26 @@ class PhoneControlService
         $driver = $this->drivers->forVendor((string) $selectedGroup['vendor']);
         $action = Str::lower(trim($action));
 
+        if (! in_array($action, $driver->supportedActions(), true)) {
+            throw new RuntimeException(
+                "Action [{$action}] is not supported for {$driver->label()}. Supported actions: "
+                . implode(', ', $driver->supportedActions()) . '.'
+            );
+        }
+
+        $activeCallId = null;
+
         if (in_array($action, [
                 PhoneControlDriver::ACTION_HOLD,
                 PhoneControlDriver::ACTION_RESUME,
                 PhoneControlDriver::ACTION_END_CALL,
+                PhoneControlDriver::ACTION_BLIND_TRANSFER,
+                PhoneControlDriver::ACTION_ATTENDED_TRANSFER,
+                PhoneControlDriver::ACTION_ANSWER_CALL,
             ], true)
             && ! (bool) ($options['force'] ?? false)
             && ! (bool) ($options['dry_run'] ?? false)) {
-            $this->guardCallState($eslService, $extension, $domain, $action);
+            $activeCallId = $this->guardCallState($eslService, $extension, $domain, $action);
         }
 
         $results = [];
@@ -260,8 +270,18 @@ class PhoneControlService
                 $group,
                 $action,
                 $destination,
+                $activeCallId,
                 (bool) ($options['dry_run'] ?? false)
             );
+        }
+
+        $autoResume = null;
+
+        if ($action === PhoneControlDriver::ACTION_CANCEL_TRANSFER
+            && ! (bool) ($options['dry_run'] ?? false)
+            && ! (bool) ($options['no_resume'] ?? false)
+            && collect($results)->every(fn (array $result) => $result['sent'])) {
+            $autoResume = $this->autoResumeAfterCancel($eslService, $extension, $domain, $driver, $selectedGroup);
         }
 
         $eslService->disconnect();
@@ -272,25 +292,83 @@ class PhoneControlService
             'vendor' => $driver->vendor(),
             'action' => $action,
             'destination' => $destination,
+            'active_call_id' => $activeCallId,
             'state_is_toggle' => $driver->actionIsToggle($action),
             'group' => $selectedGroup,
             'groups' => $selectedGroups->values()->all(),
             'skipped_groups' => $selection['skipped']->values()->all(),
             'results' => $results,
+            'auto_resume' => $autoResume,
         ];
     }
 
     /**
-     * Call-state key actions are applied by the phone to whichever call is
-     * selected on its screen, so refuse to send one unless FreeSWITCH confirms
-     * exactly one call in a state the action makes sense for.
+     * After cancel-transfer drops the consultation call, the original caller
+     * is left on hold (matching what a physical Cancel key press would do).
+     * If exactly one call remains and it's confirmed HELD, resume it
+     * automatically so cancel-transfer reads as a single complete action
+     * instead of requiring a separate resume command. Silently skipped (not
+     * an error) if the state isn't clean enough to resume safely.
+     *
+     * "sent" from the cancel-transfer driver call only means FreeSWITCH
+     * accepted the request — vendor-NOTIFY drivers (Poly, Yealink, Snom) still
+     * need a real SIP round trip to the phone before it actually hangs up the
+     * consultation leg, so the channel list briefly still shows both calls.
+     * Poll a few times for it to settle before giving up; a PBX-side driver
+     * (Generic/Grandstream) resolves on the first check since uuid_kill is
+     * synchronous, so this adds no delay there.
+     */
+    private function autoResumeAfterCancel(
+        FreeswitchEslService $eslService,
+        Extensions $extension,
+        Domain $domain,
+        PhoneControlDriver $driver,
+        array $group
+    ): ?array {
+        $maxAttempts = 5;
+        $delayMicroseconds = 400_000;
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            $calls = $this->activeCalls($eslService, $extension, $domain);
+
+            if ($calls->count() === 1 && $calls->first()['callstate'] === 'HELD') {
+                return $driver->send(
+                    $eslService,
+                    $extension,
+                    $domain,
+                    $group,
+                    PhoneControlDriver::ACTION_RESUME,
+                    null,
+                    (string) $calls->first()['sip_call_id'],
+                    false
+                );
+            }
+
+            // Only keep waiting while it looks like the consultation leg just
+            // hasn't cleared yet (still two calls); any other count means
+            // there's nothing to usefully wait for.
+            if ($calls->count() !== 2 || $attempt === $maxAttempts) {
+                return null;
+            }
+
+            usleep($delayMicroseconds);
+        }
+
+        return null;
+    }
+
+    /**
+     * Call-state actions target one specific call, so refuse to send one
+     * unless FreeSWITCH confirms exactly one call in a state the action makes
+     * sense for. Returns that call's SIP call-id — API drivers (Poly) use it
+     * as the call reference; key-simulation drivers ignore it.
      */
     private function guardCallState(
         FreeswitchEslService $eslService,
         Extensions $extension,
         Domain $domain,
         string $action
-    ): void {
+    ): string {
         $calls = $this->activeCalls($eslService, $extension, $domain);
         $target = "{$extension->extension}@{$domain->domain_name}";
 
@@ -300,23 +378,39 @@ class PhoneControlService
 
         if ($calls->count() > 1) {
             throw new RuntimeException(
-                "Extension {$target} has {$calls->count()} active calls; {$action} acts on the call "
-                . "selected on the phone, so this is ambiguous. Finish or select the right call on the phone, "
+                "Extension {$target} has {$calls->count()} active calls; {$action} targets a single call, "
+                . "so this is ambiguous. Finish or select the right call on the phone, "
                 . "or pass --force to bypass this check:\n" . $this->formatCalls($calls)
             );
         }
 
         $call = $calls->first();
+        $state = (string) $call['callstate'];
 
-        if ($action === PhoneControlDriver::ACTION_HOLD && $call['callstate'] === 'HELD') {
+        if ($action === PhoneControlDriver::ACTION_HOLD && $state === 'HELD') {
             throw new RuntimeException("The call on {$target} is already on hold.");
         }
 
-        if ($action === PhoneControlDriver::ACTION_RESUME && $call['callstate'] !== 'HELD') {
+        if ($action === PhoneControlDriver::ACTION_RESUME && $state !== 'HELD') {
+            throw new RuntimeException("The call on {$target} is not on hold (state: {$state}).");
+        }
+
+        if (in_array($action, [
+            PhoneControlDriver::ACTION_BLIND_TRANSFER,
+            PhoneControlDriver::ACTION_ATTENDED_TRANSFER,
+        ], true) && $state !== 'ACTIVE') {
             throw new RuntimeException(
-                "The call on {$target} is not on hold (state: {$call['callstate']})."
+                "The call on {$target} is not answered yet (state: {$state}); transfers need an active call."
             );
         }
+
+        if ($action === PhoneControlDriver::ACTION_ANSWER_CALL && $state !== 'RINGING') {
+            throw new RuntimeException(
+                "Extension {$target} has no ringing call to answer (state: {$state})."
+            );
+        }
+
+        return (string) $call['sip_call_id'];
     }
 
     private function formatCalls(Collection $calls): string

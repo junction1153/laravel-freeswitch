@@ -20,6 +20,7 @@ class SnomPhoneControlDriver implements PhoneControlDriver
         self::ACTION_MUTE_TOGGLE,
         self::ACTION_END_CALL,
         self::ACTION_DND_TOGGLE,
+        self::ACTION_ANSWER_CALL,
     ];
 
     public function __construct(private int $stepDelayMicroseconds = 2_000_000)
@@ -53,6 +54,7 @@ class SnomPhoneControlDriver implements PhoneControlDriver
         array $group,
         string $action,
         ?string $destination = null,
+        ?string $activeCallId = null,
         bool $dryRun = false
     ): array {
         $registration = $group['registrations'][0] ?? [];
@@ -168,6 +170,11 @@ class SnomPhoneControlDriver implements PhoneControlDriver
             // The phone ignores set:dnd_mode even from a trusted host, so DND
             // is only available as a toggle, not deterministic on/off.
             self::ACTION_DND_TOGGLE => ['key=F_DND'],
+            // Answers a ringing call. Verified empirically on a D862: OFFHOOK,
+            // ANSWER, F_ANSWER, and OK all did nothing; ENTER is what actually
+            // answers (undocumented — the public Snom keyevent list doesn't
+            // call this out as the answer key).
+            self::ACTION_ANSWER_CALL => ['key=ENTER'],
         };
     }
 
