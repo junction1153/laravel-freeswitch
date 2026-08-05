@@ -17,10 +17,12 @@ class InstallSchema
 
     public function ensureSchemas(): void
     {
+        $this->ensureMenuSchema();
         $this->ensureExtensionsSchema();
         $this->ensureRingGroupsSchema();
         $this->ensureIvrMenusSchema();
         $this->ensureFollowMeSchema();
+        $this->ensureEmailTemplatesSchema();
     }
 
     public function ensureMetadata(): void
@@ -31,9 +33,132 @@ class InstallSchema
         $this->seedRingGroupDefaultSettings();
         $this->seedIvrMenuPermissions();
         $this->seedIvrMenuDefaultSettings();
-        $this->seedFollowMePermissions();
         $this->seedFollowMeDefaultSettings();
         $this->seedActiveCallPermissions();
+    }
+
+    public function ensureEmailTemplatesSchema(): void
+    {
+        if (Schema::hasTable('email_templates')) {
+            if (! Schema::hasColumn('email_templates', 'template_layout')) {
+                Schema::table('email_templates', function (Blueprint $table) {
+                    $table->string('template_layout', 20)->default('standard');
+                });
+            }
+
+            return;
+        }
+
+        Schema::create('email_templates', function (Blueprint $table) {
+            $table->uuid('email_template_uuid')
+                ->primary()
+                ->default(DB::raw('uuid_generate_v4()'));
+            $table->uuid('domain_uuid')->nullable()->index();
+            $table->uuid('base_template_uuid')->nullable()->index();
+            $table->string('base_version', 50)->nullable();
+            $table->string('template_key');
+            $table->string('template_type', 20)->default('custom');
+            $table->string('template_language', 20)->default('en-us');
+            $table->string('template_category');
+            $table->string('template_subcategory');
+            $table->string('template_layout', 20)->default('standard');
+            $table->string('version', 50)->nullable();
+            $table->text('template_subject');
+            $table->text('template_html');
+            $table->text('template_text')->nullable();
+            $table->boolean('template_enabled')->default(true);
+            $table->text('template_description')->nullable();
+            $table->string('checksum', 64)->nullable()->index();
+            $table->uuid('created_by')->nullable();
+            $table->uuid('updated_by')->nullable();
+            $table->timestampsTz();
+
+            $table->index(
+                ['template_key', 'template_language', 'template_type'],
+                'email_templates_lookup_index'
+            );
+            $table->unique(
+                ['template_type', 'domain_uuid', 'template_key', 'template_language'],
+                'email_templates_scope_unique'
+            );
+        });
+    }
+
+    private function ensureMenuSchema(): void
+    {
+        if (! Schema::hasTable('v_menus')) {
+            Schema::create('v_menus', function (Blueprint $table) {
+                $table->uuid('menu_uuid')->primary();
+                $table->text('menu_name')->nullable()->index();
+                $table->text('menu_language')->nullable();
+                $table->text('menu_description')->nullable();
+                $table->timestampTz('insert_date')->nullable();
+                $table->uuid('insert_user')->nullable();
+                $table->timestampTz('update_date')->nullable();
+                $table->uuid('update_user')->nullable();
+            });
+        }
+
+        if (! Schema::hasTable('v_menu_items')) {
+            Schema::create('v_menu_items', function (Blueprint $table) {
+                $table->uuid('menu_item_uuid')->primary();
+                $table->uuid('menu_uuid')->nullable()->index();
+                $table->uuid('menu_item_parent_uuid')->nullable()->index();
+                $table->uuid('uuid')->nullable()->index();
+                $table->text('menu_item_title')->nullable()->index();
+                $table->text('menu_item_link')->nullable();
+                $table->text('menu_item_icon')->nullable();
+                $table->text('menu_item_category')->nullable();
+                $table->text('menu_item_protected')->nullable();
+                $table->decimal('menu_item_order', 20, 0)->nullable();
+                $table->text('menu_item_description')->nullable();
+                $table->text('menu_item_add_user')->nullable();
+                $table->text('menu_item_add_date')->nullable();
+                $table->text('menu_item_mod_user')->nullable();
+                $table->text('menu_item_mod_date')->nullable();
+                $table->timestampTz('insert_date')->nullable();
+                $table->uuid('insert_user')->nullable();
+                $table->timestampTz('update_date')->nullable();
+                $table->uuid('update_user')->nullable();
+
+                $table->index(['menu_uuid', 'menu_item_parent_uuid']);
+            });
+        }
+
+        if (! Schema::hasTable('v_menu_item_groups')) {
+            Schema::create('v_menu_item_groups', function (Blueprint $table) {
+                $table->uuid('menu_item_group_uuid')->primary();
+                $table->uuid('menu_uuid')->nullable()->index();
+                $table->uuid('menu_item_uuid')->nullable()->index();
+                $table->text('group_name')->nullable();
+                $table->uuid('group_uuid')->nullable()->index();
+                $table->timestampTz('insert_date')->nullable();
+                $table->uuid('insert_user')->nullable();
+                $table->timestampTz('update_date')->nullable();
+                $table->uuid('update_user')->nullable();
+
+                $table->index(['menu_item_uuid', 'group_uuid']);
+            });
+        }
+
+        if (! Schema::hasTable('v_menu_languages')) {
+            Schema::create('v_menu_languages', function (Blueprint $table) {
+                $table->uuid('menu_language_uuid')->primary();
+                $table->uuid('menu_uuid')->nullable()->index();
+                $table->uuid('menu_item_uuid')->nullable()->index();
+                $table->text('menu_language')->nullable()->index();
+                $table->text('menu_item_title')->nullable();
+                $table->timestampTz('insert_date')->nullable();
+                $table->uuid('insert_user')->nullable();
+                $table->timestampTz('update_date')->nullable();
+                $table->uuid('update_user')->nullable();
+
+                $table->index(
+                    ['menu_uuid', 'menu_language', 'menu_item_uuid'],
+                    'v_menu_languages_lookup_index'
+                );
+            });
+        }
     }
 
     private function ensureExtensionsSchema(): void
@@ -346,11 +471,6 @@ SQL);
         $this->seedDefaultSettings($this->ivrMenuDefaultSettings(), self::IVR_MENUS_APP_UUID);
     }
 
-    private function seedFollowMePermissions(): void
-    {
-        $this->seedPermissions($this->followMePermissions(), 'Follow Me', self::FOLLOW_ME_APP_UUID);
-    }
-
     private function seedFollowMeDefaultSettings(): void
     {
         $this->seedDefaultSettings($this->followMeDefaultSettings(), self::FOLLOW_ME_APP_UUID);
@@ -575,24 +695,6 @@ SQL);
             'ivr_menu_destinations' => ['superadmin', 'admin'],
             'ivr_menus_sub_destinations' => ['superadmin', 'admin'],
             'ivr_menus_other_destinations' => ['superadmin', 'admin'],
-        ];
-    }
-
-    private function followMePermissions(): array
-    {
-        return [
-            'follow_me_view' => ['superadmin', 'admin', 'user', 'agent'],
-            'follow_me_add' => ['superadmin', 'admin', 'user', 'agent'],
-            'follow_me_edit' => ['superadmin', 'admin', 'user', 'agent'],
-            'follow_me_delete' => ['superadmin', 'admin', 'user', 'agent'],
-            'follow_me_destination_view' => ['superadmin', 'admin', 'user', 'agent'],
-            'follow_me_destination_add' => ['superadmin', 'admin', 'user', 'agent'],
-            'follow_me_destination_edit' => ['superadmin', 'admin', 'user', 'agent'],
-            'follow_me_destination_delete' => ['superadmin', 'admin', 'user', 'agent'],
-            'follow_me_ignore_busy' => ['superadmin', 'admin', 'user', 'agent'],
-            'follow_me_cid_name_prefix' => [],
-            'follow_me_cid_number_prefix' => [],
-            'follow_me_prompt' => ['superadmin', 'admin', 'user', 'agent'],
         ];
     }
 

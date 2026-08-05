@@ -22,16 +22,16 @@
             </template>
 
             <template #action>
-                <button v-if="page.props.auth.can.device_create" type="button"
+                <button v-if="permissions.device_create" type="button"
                     @click.prevent="handleCreateButtonClick()"
                     class="rounded-md bg-indigo-600 px-2.5 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
                     Create
                 </button>
 
-                <button v-if="page.props.auth.can.manage_cloud_provision_providers" type="button"
+                <button v-if="permissions.manage_cloud_provision_providers" type="button"
                     @click.prevent="handleCloudProvisioningButtonClick()"
                     class="rounded-md bg-white px-2.5 py-1.5 ml-2 sm:ml-4 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                    Cloud
+                    {{ $t('Vendor Cloud') }}
                 </button>
 
                 <button v-if="permissions.device_import" type="button" @click.prevent="handleImportButtonClick()"
@@ -45,18 +45,18 @@
                     Key Templates
                 </a>
 
-                <a v-if="page.props.auth.can.device_profile_index" type="button" href="app/devices/device_profiles.php"
+                <a v-if="permissions.device_profile_index" type="button" :href="routes.profiles"
                     class="rounded-md bg-white px-2.5 py-1.5 ml-2 sm:ml-4 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                    Profiles
+                    {{ $t('Profiles') }}
                 </a>
 
-                <button v-if="!filterData.showGlobal && page.props.auth.can.device_view_global" type="button"
+                <button v-if="!filterData.showGlobal && permissions.device_view_global" type="button"
                     @click.prevent="handleShowGlobal()"
                     class="rounded-md bg-white px-2.5 py-1.5 ml-2 sm:ml-4 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                     Show global
                 </button>
 
-                <button v-if="filterData.showGlobal && page.props.auth.can.device_view_global" type="button"
+                <button v-if="filterData.showGlobal && permissions.device_view_global" type="button"
                     @click.prevent="handleShowLocal()"
                     class="rounded-md bg-white px-2.5 py-1.5 ml-2 sm:ml-4 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                     Show local
@@ -105,7 +105,7 @@
                         <ChevronDownIcon v-else-if="sortData.name === 'device_provisioned_date' && sortData.order === 'desc'" class="h-4 w-4 text-gray-500" />
                     </div>
                 </TableColumnHeader>
-                                <TableColumnHeader header="Cloud" class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900" />
+                <TableColumnHeader :header="$t('Vendor Cloud')" class="px-2 py-3.5 text-left text-sm font-semibold text-gray-900" />
                 <TableColumnHeader header="" class="px-2 py-3.5 text-right text-sm font-semibold text-gray-900" />
             </template>
 
@@ -135,8 +135,8 @@
                             <input v-if="row.device_address" v-model="selectedItems" type="checkbox" name="action_box[]"
                                 :value="row.device_uuid" class="h-4 w-4 rounded border-gray-300 text-indigo-600">
                             <div class="ml-4"
-                                :class="{ 'cursor-pointer hover:text-gray-900': page.props.auth.can.device_update, }"
-                                @click="page.props.auth.can.device_update && handleEditButtonClick(row.device_uuid)">
+                                :class="{ 'cursor-pointer hover:text-gray-900': permissions.device_update, }"
+                                @click="permissions.device_update && handleEditButtonClick(row.device_uuid)">
                                 {{ row.device_address_formatted }}
                             </div>
                             <ejs-tooltip :content="tooltipCopyContent" position='TopLeft' class="ml-2"
@@ -233,11 +233,7 @@
 
                     <TableField class="whitespace-nowrap px-2 py-2 text-sm text-gray-500">
                         <div class="flex items-center whitespace-nowrap">
-                            <ejs-tooltip :content="!row.cloud_provisioning ? 'Not provisioned'
-                                : (row.cloud_provisioning.status === 'success' && row.cloud_provisioning.last_action === 'register') ? 'Provisioned'
-                                    : row.cloud_provisioning.status === 'pending' ? 'Pending'
-                                        : row.cloud_provisioning.status === 'error' ? 'Error'
-                                            : 'Not provisioned'" position='TopCenter'
+                            <ejs-tooltip :content="getVendorCloudStatusTooltip(row)" position='TopCenter'
                                 target="#cloud_status_tooltip_target">
                                 <div id="cloud_status_tooltip_target">
                                     <CloudIcon :class="[
@@ -255,7 +251,7 @@
                     <TableField class="whitespace-nowrap px-2 py-1 text-sm text-gray-500">
                         <template #action-buttons>
                             <div class="flex items-center whitespace-nowrap justify-end">
-                                <ejs-tooltip v-if="page.props.auth.can.device_update" :content="'Edit'"
+                                <ejs-tooltip v-if="permissions.device_update" :content="'Edit'"
                                     position='TopCenter' target="#destination_tooltip_target">
                                     <div id="destination_tooltip_target">
                                         <PencilSquareIcon @click="handleEditButtonClick(row.device_uuid)"
@@ -273,25 +269,15 @@
                                     </div>
                                 </ejs-tooltip>
 
-                                <ejs-tooltip :content="'Restart device'" position='TopCenter'
-                                    target="#restart_tooltip_target">
-                                    <div id="restart_tooltip_target">
-                                        <RestartIcon @click="handleRestart(row.device_uuid)"
-                                            class="h-9 w-9 transition duration-500 ease-in-out py-2 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600 active:bg-gray-300 active:duration-150 cursor-pointer" />
-                                    </div>
-                                </ejs-tooltip>
-
-                                <ejs-tooltip v-if="page.props.auth.can.device_destroy" :content="'Delete'"
+                                <ejs-tooltip v-if="permissions.device_destroy" :content="'Delete'"
                                     position='TopCenter' target="#delete_tooltip_target">
                                     <div id="delete_tooltip_target">
                                         <TrashIcon @click="handleSingleItemDeleteRequest(row.device_uuid)"
                                             class="h-9 w-9 transition duration-500 ease-in-out py-2 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600 active:bg-gray-300 active:duration-150 cursor-pointer" />
                                     </div>
                                 </ejs-tooltip>
-                                <div class="relative z-20 ml-2">
-                                    <AdvancedActionButton :actions="advancedActions"
-                                        @advanced-action="(action) => handleAdvancedActionRequest(action, row.device_uuid)" />
-                                </div>
+                                <AdvancedActionButton :actions="advancedActions"
+                                    @advanced-action="(action) => handleAdvancedActionRequest(action, row.device_uuid)" />
                             </div>
                         </template>
                     </TableField>
@@ -343,7 +329,7 @@
 
 
     <CloudProvisioningSettings :show="showCloudProvisioningSettings" @close="showCloudProvisioningSettings = false"
-        :header="'Cloud Provisioning Settings'" :loading="isModalLoading" :routes="routes" @error="handleErrorResponse"
+        :header="$t('Vendor Cloud Settings')" :loading="isModalLoading" :routes="routes" @error="handleErrorResponse"
         @success="showNotification" />
 
 
@@ -494,7 +480,6 @@
 
 <script setup>
 import { computed, onMounted, ref } from "vue";
-import { usePage } from '@inertiajs/vue3'
 import axios from 'axios';
 import DataTable from "./components/general/DataTable.vue";
 import TableColumnHeader from "./components/general/TableColumnHeader.vue";
@@ -510,7 +495,6 @@ import { ClipboardDocumentIcon, DocumentArrowUpIcon } from "@heroicons/vue/24/ou
 import { TooltipComponent as EjsTooltip } from "@syncfusion/ej2-vue-popups";
 import BulkUpdateDeviceForm from "./components/forms/BulkUpdateDeviceForm.vue";
 import MainLayout from "../Layouts/MainLayout.vue";
-import RestartIcon from "./components/icons/RestartIcon.vue";
 import CreateDeviceForm from "./components/forms/CreateDeviceForm.vue";
 import UpdateDeviceForm from "./components/forms/UpdateDeviceForm.vue";
 import Notification from "./components/notifications/Notification.vue";
@@ -520,8 +504,8 @@ import AddEditItemModal from "./components/modal/AddEditItemModal.vue";
 import AceEditor from "./components/general/AceEditor.vue";
 import UploadModal from "./components/modal/UploadModal.vue";
 import ImportDevicesModal from "./components/modal/ImportDevicesModal.vue";
+import { trans } from "laravel-vue-i18n";
 
-const page = usePage()
 const props = defineProps({
     routes: Object,
     permissions: {
@@ -585,6 +569,47 @@ const data = ref({
 
 const perPage = ref(props.pagination?.per_page);
 
+const getVendorCloudServiceName = (row) => {
+    const provider = String(row.cloud_provisioning?.provider ?? row.device_vendor ?? '').toLowerCase()
+
+    if (provider === 'yealink') {
+        return trans('Yealink RPS')
+    }
+
+    if (provider === 'polycom') {
+        return trans('Polycom ZTP')
+    }
+
+    return trans('vendor cloud')
+}
+
+const getVendorCloudStatusTooltip = (row) => {
+    const provisioning = row.cloud_provisioning
+    const service = getVendorCloudServiceName(row)
+
+    if (!provisioning || (provisioning.status === 'success' && provisioning.last_action === 'deregister')) {
+        return trans('Not listed in :service', { service })
+    }
+
+    if (provisioning.status === 'success' && provisioning.last_action === 'register') {
+        return trans('Listed in :service', { service })
+    }
+
+    if (provisioning.status === 'pending') {
+        return provisioning.last_action === 'deregister'
+            ? trans('Removing from :service', { service })
+            : trans('Adding to :service', { service })
+    }
+
+    if (provisioning.status === 'error') {
+        return provisioning.last_action === 'deregister'
+            ? trans('Could not remove from :service', { service })
+            : trans('Could not add to :service', { service })
+    }
+
+    return trans('Not listed in :service', { service })
+}
+
 
 onMounted(() => {
     handleSearchButtonClick();
@@ -602,9 +627,16 @@ const sortData = ref({
 
 const advancedActions = computed(() => [
     {
-        category: "Advanced",
+        category: trans('Device Actions'),
         actions: [
-            { id: 'duplicate', label: 'Duplicate', icon: 'DocumentDuplicateIcon' },
+            { id: 'restart', label: trans('Restart'), icon: 'RestartIcon' },
+            { id: 'sync', label: trans('Sync'), icon: 'SyncIcon' },
+        ],
+    },
+    {
+        category: trans('Advanced'),
+        actions: [
+            { id: 'duplicate', label: trans('Duplicate'), icon: 'DocumentDuplicateIcon' },
         ],
     },
 ]);
@@ -680,6 +712,16 @@ const handleSortRequest = (column) => {
 
 
 const handleAdvancedActionRequest = (action, uuid) => {
+    if (action === 'restart') {
+        handleRestart(uuid);
+        return;
+    }
+
+    if (action === 'sync') {
+        handleSync(uuid);
+        return;
+    }
+
     if (action === 'duplicate') {
         itemToDuplicate.value = uuid;
         newMacAddress.value = '';
@@ -839,7 +881,7 @@ const bulkActions = computed(() => {
     ];
 
     // Conditionally add the delete action if permission is granted
-    if (page.props.auth.can.device_destroy) {
+    if (permissions.device_destroy) {
         actions.push({
             id: 'bulk_delete',
             label: 'Delete',
@@ -997,6 +1039,19 @@ const handleRestart = (device_uuid) => {
         .then((response) => {
             showNotification('success', response.data.messages);
 
+            handleClearSelection();
+        }).catch((error) => {
+            handleClearSelection();
+            handleFormErrorResponse(error);
+        });
+}
+
+const handleSync = (device_uuid) => {
+    axios.post(props.routes.sync,
+        { 'devices': [device_uuid] },
+    )
+        .then((response) => {
+            showNotification('success', response.data.messages);
             handleClearSelection();
         }).catch((error) => {
             handleClearSelection();

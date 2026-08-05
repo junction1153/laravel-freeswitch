@@ -36,6 +36,17 @@ return [
         'speech_max_attempts' => env('OPENAI_SPEECH_MAX_ATTEMPTS', 2),
     ],
 
+    'opensearch_logs' => [
+        'url' => env('OPENSEARCH_LOGS_URL'),
+        'index' => env('OPENSEARCH_LOGS_INDEX', 'fs-pbx-freeswitch-*'),
+        'username' => env('OPENSEARCH_LOGS_USERNAME'),
+        'password' => env('OPENSEARCH_LOGS_PASSWORD'),
+        'verify_tls' => env('OPENSEARCH_LOGS_VERIFY_TLS', true),
+        'ca_bundle' => env('OPENSEARCH_LOGS_CA_BUNDLE'),
+        'timeout' => env('OPENSEARCH_LOGS_TIMEOUT', 30),
+        'connect_timeout' => env('OPENSEARCH_LOGS_CONNECT_TIMEOUT', 3),
+    ],
+
     'google' => [
         'project_id'   => env('GOOGLE_PROJECT_ID'),
         'region'       => env('GOOGLE_SPEECH_REGION', 'us-central1'),
@@ -82,7 +93,15 @@ return [
     'ztp' => [
         'polycom' => [
             'api_url' => env('POLYCOM_API_URL', 'https://api.ztp.poly.com/v1'),
-        ]
+        ],
+        'yealink' => [
+            'api_url' => env('YEALINK_RPS_API_URL', 'https://us-api.ymcs.yealink.com'),
+            'api_urls' => [
+                'https://us-api.ymcs.yealink.com',
+                'https://eu-api.ymcs.yealink.com',
+                'https://au-api.ymcs.yealink.com',
+            ],
+        ],
     ],
     'ceretax' => [
         'env' => env('CERETAX_ENV', 'sandbox'),

@@ -2,6 +2,7 @@ import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vite';
 import path from 'path';
 import vue from '@vitejs/plugin-vue';
+import i18n from 'laravel-vue-i18n/vite';
 import collectModuleAssetsPaths from './vite-module-loader.js';
 import fs from 'fs';
 
@@ -46,6 +47,16 @@ async function getConfig() {
                 usePolling: true,
                 interval: 1000,
             },
+            fs: {
+                strict: true,
+                deny: [
+                    '.env',
+                    '.env.*',
+                    '*.{crt,pem}',
+                    '**/.git/**',
+                    '**/.DS_Store',
+                ],
+            },
             cors: {
                 origin: VITE_ORIGIN,
             },
@@ -79,6 +90,10 @@ async function getConfig() {
                     }
                 },
             }),
+            // Exposes app-defined resources/lang/*.php translation files (e.g.
+            // Laravel's own validation.php) to Vue alongside the *.json
+            // catalogs the app loads directly via i18nVue's resolve().
+            i18n('resources/lang'),
         ],
         build: {
             outDir: 'storage/app/public/vite',

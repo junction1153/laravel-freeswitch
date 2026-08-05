@@ -25,6 +25,20 @@ This repo is a Laravel, Vue/Inertia, VueForm, and FreeSWITCH application. Before
 - Use VueForm for create/update modals.
 - Keep forms clear and operational. Avoid marketing-style UI.
 
+## Email Templates
+
+- Native email templates live in the `email_templates` table. Do not restore the legacy `v_email_templates` schema, legacy template-population blocks, install-time cleanup scripts, or `LegacyEmailTemplateCleaner`.
+- Default email template sources use `resources/views/emails/{category}/{subcategory}.blade.php` and a required `{subcategory}-text.blade.php` companion.
+- The HTML file owns shared `email-template` metadata, including `version`, language, category, subcategory, subject, and description. Its plain-text companion carries only `format: text` and `layout: none`; bump the version once in the HTML file when either body changes.
+- Bump the template version whenever seeded subject, HTML, text, or layout content changes. Updates overwrite versioned defaults but never custom overrides.
+- The email template create-table migration runs `email:templates:seed` immediately after creating the table, so manually running migrations after `app:update` populates defaults even when the earlier update-time seed skipped a missing table.
+- Runtime resolution order is current-account custom, global custom, then shipped default, with the requested language preferred before `en-us`. The database is the source of truth once a matching row exists.
+- Application mailables extend `BaseMailable`, prepare trusted data in the constructor, call `useEmailTemplate(category, subcategory)`, and declare an explicit Laravel `content(): Content` method showing the HTML/text view pair. The base class owns shared `Envelope`, headers, and database-override wrapping.
+- Editable templates support Blade directives but reject `@php`, raw PHP tags, and scripts. Superadmin access is still the trust boundary because Blade expressions are executable.
+- Email template previews must render through `SafeEmailTemplateRenderer` with representative sample variables; never send raw Blade source directly to an iframe. Read-only rows preview stored content, while authorized editable rows may preview unsaved content.
+- Email Template visibility is fixed to shipped defaults, global custom overrides, and custom overrides for `session('domain_uuid')`; never add an all-accounts view. `email_templates_manage_global` controls global-custom mutations only and does not broaden record visibility.
+- This feature is a breaking change for installations that edited legacy email templates: legacy customizations are not imported or used. Release notes must tell administrators to save those changes before upgrading and recreate them as custom templates afterward.
+
 ## Extensions And Voicemail
 
 - Extension numbers and voicemail IDs are only unique inside a domain. Any lookup, relationship use, eager load, listener, observer, job, or response reload that connects `v_extensions.extension` to `v_voicemails.voicemail_id` must also constrain `domain_uuid`.
@@ -172,6 +186,7 @@ This repo is a Laravel, Vue/Inertia, VueForm, and FreeSWITCH application. Before
 
 - If an update version has shipped, do not keep editing it for new behavior. Create the next update.
 - An update should be best-effort when touching host services. App updates should not fail just because a FreeSWITCH module cannot be compiled.
+- Update classes can expose `getSupervisorProgramsToRestart()` for `UpdateApp` to restart long-running processes after code, templates, assets, and ownership are updated. Do not include the opt-in `fs-esl-listener-call-webhooks` program in unconditional restarts because its Supervisor config intentionally uses `autostart=false`; Horizon is already recycled with `horizon:terminate`.
 - When updates change generated dialplan XML or dialplan details, clear only the affected dialplan cache contexts.
 - Keep update console output truthful. Do not claim a module, file, or cache was refreshed unless it actually was.
 - When replacing untracked legacy files under `public/app/...`, follow the existing update pattern: download from the canonical GitHub raw URL, ensure the destination directory exists, reject empty downloads, and register the update step in `UpdateApp.php`.
@@ -179,7 +194,7 @@ This repo is a Laravel, Vue/Inertia, VueForm, and FreeSWITCH application. Before
 ## FreeSWITCH Files
 
 - New Lua scripts belong in `resources/lua`.
-- Future-install FreeSWITCH config belongs under `public/app/switch/resources/conf/...`.
+- Future-install FreeSWITCH autoload config belongs under `resources/autoload_configs`; other FreeSWITCH config remains under `public/app/switch/resources/conf/...`.
 - Existing-install FreeSWITCH config usually needs to be written or patched under `/etc/freeswitch/...` from an update class.
 - Dialplan templates live under `public/app/dialplans/resources/switch/conf/dialplan`.
 - For Lua called by dialplan XML, use paths that match the FreeSWITCH runtime script directory, such as `lua/call_block.lua`.
@@ -203,6 +218,20 @@ This repo is a Laravel, Vue/Inertia, VueForm, and FreeSWITCH application. Before
 - Debug logs should be plain English and explain the important runtime decision.
 - Preserve call routing safety: avoid blocking calls from unsupported or malformed rules unless behavior is explicit.
 - Use atomic SQL for counters where concurrent calls can update the same row.
+
+## Localization
+
+- Backend and frontend share one translation catalog: `resources/lang/{locale}.json`, keyed by the literal English source string, not an invented dot-namespaced key. Wrap new UI copy with `__()`/`trans()`/`@lang()` in PHP/Blade or `$t()`/`$tChoice()`/`trans()` in Vue, then run `php artisan lang:sync` -- this not only adds the string to `resources/lang/en-us.json`, it also propagates the key to every other registered locale file automatically (see below), so a translator only ever has to fill in a blank, never chase a missing key. User-facing docs (for translators and admins, not engineering detail) live at `documentation/docs/tutorials/10-additional-information/05-translations.md`.
+- **`lang:sync` keeps every locale file's key set in sync with the source automatically.** A newly-added source key is appended to every other `resources/lang/{locale}.json` with `""` as the value (unconditional, no flag). A key no longer in source is removed from every *other* locale file unconditionally too (an orphan key can't be looked up by the running app and already hard-fails CI, so there's no reason to gate that); `--prune` additionally removes it from the source file itself, which stays opt-in since that's the bigger, less reversible call. An existing non-empty translation whose `:placeholder` tokens don't match the source string's is reset to `""` rather than left broken. `""` is the "not translated yet" marker -- `App\Support\Localization\LocaleFileLoader` (backend) and the `resolve` callback in `resources/js/vue.js` (frontend) both strip empty values before the translation library ever sees them, so a blank behaves exactly like an absent key: falls back to English, rather than rendering as blank text. This replaced Crowdin's automatic source-upload step; there's no CI equivalent by design, it's automatic the moment a dev runs the command they already had to run.
+- `resources/lang/en-us.json` is the source manifest everything else is translated against. `config('app.locale')`/`fallback_locale` are `en-us`, matching the FusionPBX `domain_setting_category=domain, subcategory=language, name=code` convention that already existed (seeded, and already read by legacy `get_domain_setting('language')`). Laravel's own framework translation files live at `resources/lang/en-us/*.php`, not `resources/lang/en/` -- don't recreate an `en/` directory.
+- Locale is a per-domain setting, not a per-user preference. `App\Http\Middleware\SetApplicationLocale` (registered in the `web` group, after `CheckFusionPBXLogin` and before `HandleInertiaRequests`) resolves it from `session('domain.language.code')`, falling back to `get_domain_setting('language')` for guests, and calls `App::setLocale()`. Like every other domain setting, a change takes effect on next login or an explicit "Reload Settings" action, not mid-session.
+- **Every locale falls back straight to `en-us` for a key it doesn't define -- there's no dialect-to-dialect inheritance.** An earlier version chained regional variants (`es-mx` -> `es-419` -> `es-es` -> `en-us`) so a variant only had to override the handful of words that differ from its parent, but that meant knowing which of several files to edit for a given string, which was confusing enough to drop (explicit user decision) in favor of every locale file being fully independent. `config/locales.php` no longer has a per-locale `fallback` key; `App\Support\Localization\LocaleRegistry::chain()` and `LocaleFileLoader`'s merge-over-chain still exist and still work (they degrade to a trivial `[en-us, locale]`), so reintroducing chaining, if ever wanted, is just adding `fallback` back to a locale's config entry, not new code. **Remember to `php artisan config:clear` after editing `config/locales.php`** -- a stale `bootstrap/cache/config.php` will silently keep serving the old fallback chain.
+- Locale codes are standard lowercased BCP-47-ish identifiers (e.g. `es-es`, `pt-br`), not invented codes.
+- A locale only appears in a domain's language picker once `LocaleRegistry::available()` reports its own keys at or above `config('locales.minimum_completion')` coverage of `en-us.json`. `ownKeys()` counts only keys with a *non-empty* value as "own" -- since `lang:sync` seeds every locale file with every key (blank where untranslated), counting bare key presence would make every locale read 100% regardless of real progress and defeat this gate entirely. Below the threshold a locale still renders correctly via fallback and can still be worked on across multiple PRs -- don't block partial translation work on this, only picker visibility.
+- `.github/workflows/validate-translations.yml` fails a PR only for invalid JSON, a key not present in `en-us.json`, or a `:placeholder` mismatch in a *non-empty* translation -- an empty value is a deliberate "not translated" marker, not a translation attempt, so it's exempt from the placeholder check. Never fails for incomplete coverage.
+- Translation is contributed directly via PR against `resources/lang/{locale}.json` -- there is no third-party translation platform (Crowdin was evaluated and dropped: their free tier caps at 60k words and the project's open-source-license application was declined). Everything above is self-contained to this repo.
+- To see a locale's untranslated keys without editing the file (or to bulk-stub them with real English text as a starting point), run `php artisan lang:missing {locale}` / `--stub`. `php .github/scripts/validate-translations.php --missing={locale}` gives the same list without needing the app bootstrapped (no `composer install`, just `php`).
+- Modules under `Modules/` and legacy `/public/app/...` pages (which have their own older FusionPBX-native translation system) are out of scope for this catalog.
 
 ## Verification
 
