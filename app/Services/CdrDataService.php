@@ -12,6 +12,7 @@ use App\Models\BasicDialerCampaignAttempt;
 use App\Models\Dialplans;
 use App\Models\Extensions;
 use App\Models\OutboundFax;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -25,7 +26,7 @@ class CdrDataService
 
         // Check if user is allowed to see all CDRs for tenant
         $user = auth()->user();
-        if ($user && userCheckPermission("xml_cdr_view") && userCheckPermission("xml_cdr_view_self_records") && !userCheckPermission("xml_cdr_view_all_records")) {
+        if ($user && userCheckPermission("xml_cdr_view_self_records") && !userCheckPermission("xml_cdr_view_all_records")) {
             $params['filter']['entity']['value'] = $user->extension_uuid;
             $params['filter']['entity']['type'] = 'extension';
         }
@@ -209,16 +210,20 @@ class CdrDataService
         return $formattedDuration;
     }
 
-    public function getExtensionStatistics($params = [])
+    public function getExtensionStatistics(array $params = []): LengthAwarePaginator
     {
-        $all = $this->buildExtensionStatisticsCollection($params);
+        $all = $this->getExtensionStatisticsCollection($params);
 
-        $perPage     = (int) ($params['per_page'] ?? 50);
-        $currentPage = (int) ($params['page'] ?? 1);
+        $perPage = (int) ($params['per_page'] ?? 50);
+        if (! in_array($perPage, fspbx_pagination_options(), true)) {
+            $perPage = 50;
+        }
+
+        $currentPage = max(1, (int) ($params['page'] ?? 1));
         $total       = $all->count();
         $pageItems   = $all->forPage($currentPage, $perPage)->values();
 
-        return new \Illuminate\Pagination\LengthAwarePaginator(
+        return new LengthAwarePaginator(
             $pageItems,
             $total,
             $perPage,
@@ -227,9 +232,17 @@ class CdrDataService
         );
     }
 
-    public function getApiExtensionStatistics($params = []): array
+    public function getExtensionStatisticsCollection(array $params = []): Collection
     {
-        $all = $this->buildExtensionStatisticsCollection($params);
+        $params['filter'] = $params['filter'] ?? [];
+        $params['filter']['showGlobal'] = false;
+
+        return $this->buildExtensionStatisticsCollection($params);
+    }
+
+    public function getApiExtensionStatistics(array $params = []): array
+    {
+        $all = $this->getExtensionStatisticsCollection($params);
 
         $limit = (int) ($params['limit'] ?? 50);
         $limit = max(1, min(100, $limit));
@@ -248,7 +261,7 @@ class CdrDataService
         ];
     }
 
-    protected function buildExtensionStatisticsCollection($params = [])
+    protected function buildExtensionStatisticsCollection(array $params = []): Collection
     {
         $domain_uuid = $params['domain_uuid'] ?? session('domain_uuid');
         $extensionUuid = $params['filter']['extension_uuid'] ?? null;
@@ -259,7 +272,6 @@ class CdrDataService
         $selfExtensionUuid = null;
         if (
             $user
-            && userCheckPermission("xml_cdr_view")
             && userCheckPermission("xml_cdr_view_self_records")
             && !userCheckPermission("xml_cdr_view_all_records")
         ) {
@@ -785,7 +797,8 @@ class CdrDataService
                 $row['time_line'] = sprintf('%02d:%02d', floor($timeDifference / 60), $timeDifference % 60);
 
                 if ($cdr->direction === 'outbound') {
-                    $row['dialplan_app'] = 'Outbound Call';
+                    $row['dialplan_app'] = __('Outbound Call');
+                    $row['dialplan_app_type'] = 'outbound_call';
                 }
 
                 return $row;
@@ -1091,37 +1104,45 @@ class CdrDataService
             $patterns = [
                 'ring_group_uuid' => [
                     'pattern' => '/ring_group_uuid=([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/',
-                    'app' => 'Ring Group',
+                    'app' => __('Ring Group'),
+                    'type' => 'ring_group',
                 ],
                 'ivr_menu_uuid' => [
                     'pattern' => '/ivr_menu_uuid=([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/',
-                    'app' => 'Auto Receptionist',
+                    'app' => __('Auto Receptionist'),
+                    'type' => 'auto_receptionist',
                 ],
                 'call_center_queue_uuid' => [
                     'pattern' => '/call_center_queue_uuid=([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/',
-                    'app' => 'Contact Center Queue',
+                    'app' => __('Contact Center Queue'),
+                    'type' => 'contact_center_queue',
                 ],
                 'call_direction_inbound' => [
                     'pattern' => '/call_direction=inbound/',
-                    'app' => 'Inbound Call',
+                    'app' => __('Inbound Call'),
+                    'type' => 'inbound_call',
                 ],
                 'date_time' => [
                     'pattern' => '/\b(?:year|yday|mon|mday|week|mweek|wday|hour|minute|minute-of-day|time-of-day|date-time)=/',
-                    'app' => 'Schedule',
+                    'app' => __('Schedule'),
+                    'type' => 'schedule',
                 ],
                 'application_rxfax' => [
                     'pattern' => '/application="rxfax"/',
-                    'app' => 'Virtual Fax',
+                    'app' => __('Virtual Fax'),
+                    'type' => 'virtual_fax',
                 ],
                 'call_flow_uuid' => [
                     'pattern' => '/call_flow_uuid=([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/',
-                    'app' => 'Call Flow',
+                    'app' => __('Call Flow'),
+                    'type' => 'call_flow',
                 ],
             ];
 
             foreach ($patterns as $key => $info) {
                 if (preg_match($info['pattern'], $dialplan->dialplan_xml, $matches)) {
                     $row['dialplan_app'] = $info['app'];
+                    $row['dialplan_app_type'] = $info['type'];
                     $row['dialplan_name'] = $dialplan->dialplan_name;
                     $row['dialplan_description'] = $dialplan->dialplan_description;
                     break; // Stop checking after the first match
@@ -1133,7 +1154,8 @@ class CdrDataService
 
         // Check if destination is Park
         if (strpos($row['destination_number'], "park+") !== false) {
-            $row['dialplan_app'] = "Park";
+            $row['dialplan_app'] = __("Park");
+            $row['dialplan_app_type'] = 'park';
             $row['dialplan_name'] = substr($row['destination_number'], 6);
             $row['dialplan_description'] = '';
             return $row;
@@ -1141,7 +1163,8 @@ class CdrDataService
 
         // Check if destination is voicemail
         if ((substr($row['destination_number'], 0, 3) == '*99') !== false) {
-            $row['dialplan_app'] = "Voicemail";
+            $row['dialplan_app'] = __("Voicemail");
+            $row['dialplan_app_type'] = 'voicemail';
             $row['dialplan_name'] = substr($row['destination_number'], 3);
             $row['dialplan_description'] = '';
             return $row;
@@ -1154,7 +1177,8 @@ class CdrDataService
                 $interceptedExt = $matches[1];
                 $intereceptedByExt = $matches[2];
 
-                $row['dialplan_app'] = "Call Intercept " . $interceptedExt;
+                $row['dialplan_app'] = __('Call Intercept :extension', ['extension' => $interceptedExt]);
+                $row['dialplan_app_type'] = 'call_intercept';
 
                 // Check if intereceptedByExt is extension
                 $extension = Extensions::where('domain_uuid', $domainUuid)
@@ -1178,13 +1202,15 @@ class CdrDataService
             ->first();
 
         if ($extension) {
-            $row['dialplan_app'] = "Extension";
+            $row['dialplan_app'] = __("Extension");
+            $row['dialplan_app_type'] = 'extension';
             $row['dialplan_name'] = $extension->effective_caller_id_name;
             $row['dialplan_description'] = $extension->description;
             return $row;
         }
 
-        $row['dialplan_app'] = "Misc. Destination";
+        $row['dialplan_app'] = __("Misc. Destination");
+        $row['dialplan_app_type'] = 'misc_destination';
         $row['dialplan_name'] = $row['destination_number'];
         $row['dialplan_description'] = null;
         return $row;
