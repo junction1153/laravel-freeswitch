@@ -5,6 +5,7 @@ use App\Http\Controllers\AccessControlController;
 use App\Http\Controllers\ActiveConferenceController;
 use App\Http\Controllers\ActiveCallsController;
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\AiAgentController;
 use App\Http\Controllers\AppsController;
 use App\Http\Controllers\AppsCredentialsController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
@@ -109,6 +110,7 @@ Route::webhooks('webhook/postmark', 'postmark');
 Route::webhooks('webhook/mailgun', 'mailgun');
 Route::webhooks('webhook/commio/sms', 'commio_messaging');
 Route::webhooks('webhook/sinch/sms', 'sinch_messaging');
+Route::webhooks('webhook/voxutel/sms', 'voxutel_messaging');
 Route::webhooks('webhook/bandwidth/sms', 'bandwidth_messaging');
 Route::webhooks('webhook/telnyx/sms', 'telnyx_messaging');
 Route::webhooks('webhook/clicksend/sms', 'clicksend_messaging');
@@ -310,6 +312,7 @@ Route::group(['middleware' => 'auth'], function () {
 
     // Conference Centers
     Route::get('conference-centers', [ConferenceCenterController::class, 'index'])->name('conference-centers.index');
+    Route::get('ai-agents', [AiAgentController::class, 'index'])->name('ai-agents.index');
     Route::get('conferences', [ConferenceController::class, 'index'])->name('conferences.index');
     Route::get('conference-controls', [ConferenceControlController::class, 'index'])->name('conference-controls.index');
     Route::get('conference-profiles', [ConferenceProfileController::class, 'index'])->name('conference-profiles.index');
