@@ -908,6 +908,12 @@ class ExtensionsController extends Controller
             'permissions' => $permissions,
             'routes'      => $routes,
             'phone_numbers' => $phone_numbers ?? null,
+            // Emergency calls fall back to a separate company number, so name that choice distinctly.
+            'emergency_phone_numbers' => collect($phone_numbers ?? [])
+                ->map(fn ($item) => $item['value'] === '' ? ['value' => '', 'label' => __('Company Emergency Number')] : $item)
+                ->all(),
+            'company_caller_id' => app(\App\Services\CompanyCallerIdService::class)
+                ->options(\App\Models\Domain::whereKey($currentDomain)->firstOrFail()),
             'mobile_app' => [
                 'org_id' => $mobileAppOrgId ?? null,
                 'connections' => $mobileAppConnections ?? [],
@@ -1116,11 +1122,6 @@ public function store(StoreExtensionRequest $request)
             // Clear FusionPBX cache for the extension
             if (isset($extension->extension)) {
                 FusionCache::clear("directory:" . $extension->extension . "@" . $extension->user_context);
-            }
-
-            // Clear the destinations session array if present
-            if (isset($_SESSION['destinations']['array'])) {
-                unset($_SESSION['destinations']['array']);
             }
 
             return response()->json([
@@ -1468,11 +1469,6 @@ public function store(StoreExtensionRequest $request)
             //clear fusionpbx cache
             FusionCache::clear("directory:" . $extension->extension . "@" . $extension->user_context);
 
-            //clear the destinations session array
-            if (isset($_SESSION['destinations']['array'])) {
-                unset($_SESSION['destinations']['array']);
-            }
-
             $freshExtension = $extension->fresh(['advSettings']);
             $freshExtension->load([
                 'voicemail' => function ($query) use ($currentDomain) {
@@ -1614,10 +1610,6 @@ public function store(StoreExtensionRequest $request)
                 }
 
                 FusionCache::clear("directory:" . $extension->extension . "@" . $extension->user_context);
-            }
-
-            if (isset($_SESSION['destinations']['array'])) {
-                unset($_SESSION['destinations']['array']);
             }
 
             DB::commit();
@@ -1981,11 +1973,6 @@ public function store(StoreExtensionRequest $request)
                 }
             }
 
-            // 9. Clear the destinations session array if present
-            if (isset($_SESSION['destinations']['array'])) {
-                unset($_SESSION['destinations']['array']);
-            }
-
             DB::commit();
 
             return response()->json([
@@ -2266,33 +2253,12 @@ public function store(StoreExtensionRequest $request)
      */
     protected function buildForwardDestinationTarget(array $inputs, string $prefix)
     {
-        $actionKey = "{$prefix}_action";
-        $targetKey = "{$prefix}_target";
-        $externalKey = "{$prefix}_external_target";
-
-        switch ($inputs[$actionKey] ?? null) {
-            case 'extensions':
-            case 'ring_groups':
-            case 'ivrs':
-            case 'business_hours':
-            case 'time_conditions':
-            case 'contact_centers':
-            case 'ai_agents':
-            case 'faxes':
-            case 'call_flows':
-                return $inputs[$targetKey] ?? null;
-
-            case 'voicemails':
-                return isset($inputs[$targetKey]) ? ('*99' . $inputs[$targetKey]) : null;
-
-            case 'external':
-                return $inputs[$externalKey] ?? null;
-
-            default:
-                return null;
-        }
+        return \App\Services\CallRoutingOptionsService::forwardingTarget(
+            $inputs["{$prefix}_action"] ?? null,
+            $inputs["{$prefix}_target"] ?? null,
+            $inputs["{$prefix}_external_target"] ?? null
+        );
     }
-
 
     public function clearCallforwardDestination(Extensions $extension, Request $request)
     {

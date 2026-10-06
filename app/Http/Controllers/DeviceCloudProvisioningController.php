@@ -14,6 +14,7 @@ use App\Services\PolycomCloudProvider;
 use App\Models\CloudProvisioningStatus;
 use App\Models\DeviceCloudProvisioning;
 use App\Services\CloudProviderSelector;
+use App\Services\YealinkRpsCloudProvider;
 use Illuminate\Support\Facades\Session;
 use App\Services\DeviceCloudProvisioningService;
 use App\Http\Requests\PairZtpOrganizationRequest;
@@ -122,7 +123,7 @@ class DeviceCloudProvisioningController extends Controller
             $cloudProvider = $cloudProviderSelector->getCloudProvider(request('provider'));
 
             if (!$cloudProvider) {
-                throw new \Exception('There was an issue retrieving requested data.');
+                throw new \Exception(__('There was an issue retrieving requested data.'));
             }
 
             $providerSettings = $cloudProvider::getSettings();
@@ -209,7 +210,7 @@ class DeviceCloudProvisioningController extends Controller
             $cloudProvider = $cloudProviderSelector->getCloudProvider(request('provider'));
 
             if (!$cloudProvider) {
-                throw new \Exception('Unsupported cloud provisioning provider.');
+                throw new \Exception(__('Unsupported cloud provisioning provider.'));
             }
 
             $credentials = $cloudProvider->getCredentials();
@@ -224,7 +225,7 @@ class DeviceCloudProvisioningController extends Controller
 
             return response()->json([
                 'success' => false,
-                'errors' => ['server' => ['Unable to retrieve API Token. Check logs for more details']],
+                'errors' => ['server' => [__('Unable to retrieve API Token. Check logs for more details')]],
             ], 500); // 500 Internal Server Error for any other errors
         }
     }
@@ -244,21 +245,21 @@ class DeviceCloudProvisioningController extends Controller
             $cloudProvider = $cloudProviderSelector->getCloudProvider($data['provider']);
 
             if (!$cloudProvider) {
-                throw new \Exception('Unsupported cloud provisioning provider.');
+                throw new \Exception(__('Unsupported cloud provisioning provider.'));
             }
 
             $cloudProvider->setCredentials($data);
 
             // Return a JSON response indicating success
             return response()->json([
-                'messages' => ['success' => ['Cloud provisioning credentials were successfully updated.']]
+                'messages' => ['success' => [__('Cloud provisioning credentials were successfully updated.')]]
             ], 201);
         } catch (\Exception $e) {
             logger($e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
             // Handle any other exception that may occur
             return response()->json([
                 'success' => false,
-                'errors' => ['server' => ['Unable to update API Token. Check logs for more details']]
+                'errors' => ['server' => [__('Unable to update API Token. Check logs for more details')]]
             ], 500);  // 500 Internal Server Error for any other errors
         }
     }
@@ -297,7 +298,7 @@ class DeviceCloudProvisioningController extends Controller
 
             // Return a JSON response indicating success
             return response()->json([
-                'messages' => ['success' => ['Organization successfully activated']]
+                'messages' => ['success' => [__('Organization successfully activated')]]
             ], 201);
         } catch (\Exception $e) {
             logger($e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
@@ -319,20 +320,20 @@ class DeviceCloudProvisioningController extends Controller
             $cloudProvider = $cloudProviderSelector->getCloudProvider($data['provider']);
 
             if (!$cloudProvider) {
-                throw new \Exception('Unsupported cloud provisioning provider.');
+                throw new \Exception(__('Unsupported cloud provisioning provider.'));
             }
 
             $cloudProvider->pairOrganization(session('domain_uuid'), $data['org_id']);
 
             return response()->json([
-                'messages' => ['success' => ['Cloud provisioning account was successfully connected.']]
+                'messages' => ['success' => [__('Cloud provisioning account was successfully connected.')]]
             ], 200);
         } catch (\Exception $e) {
             logger($e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
             return response()->json([
                 'status' => 500,
                 'error' => [
-                    'message' => 'An unexpected error occurred. Please try again later.',
+                    'message' => __('An unexpected error occurred. Please try again later.'),
                 ],
             ]);
         }
@@ -359,7 +360,7 @@ class DeviceCloudProvisioningController extends Controller
             // Return a JSON response indicating success
             return response()->json([
                 'org_id' => $data['organization_id'],
-                'messages' => ['success' => ['Organization successfully updated']]
+                'messages' => ['success' => [__('Organization successfully updated')]]
             ], 201);
         } catch (\Exception $e) {
             logger($e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
@@ -384,7 +385,7 @@ class DeviceCloudProvisioningController extends Controller
             $cloudProvider = $cloudProviderSelector->getCloudProvider(request('provider'));
 
             if (!$cloudProvider) {
-                throw new \Exception('Unsupported cloud provisioning provider.');
+                throw new \Exception(__('Unsupported cloud provisioning provider.'));
             }
 
             // Get Org ID from database
@@ -394,7 +395,7 @@ class DeviceCloudProvisioningController extends Controller
             if (!$org_id) {
                 return response()->json([
                     'success' => false,
-                    'errors' => ['server' => ['Organization ID not found for the given domain.']]
+                    'errors' => ['server' => [__('Organization ID not found for the given domain.')]]
                 ], 404); // 404 Not Found
             }
 
@@ -408,7 +409,7 @@ class DeviceCloudProvisioningController extends Controller
                         ->delete();
 
                     return response()->json([
-                        'messages' => ['success' => ['Organization was successfully deleted.']]
+                        'messages' => ['success' => [__('Organization was successfully deleted.')]]
                     ], 200);
                 }
 
@@ -438,13 +439,13 @@ class DeviceCloudProvisioningController extends Controller
                 }
 
                 return response()->json([
-                    'messages' => ['success' => ['Organization was successfully deleted.']]
+                    'messages' => ['success' => [__('Organization was successfully deleted.')]]
                 ], 200); // 200 OK
             }
 
             return response()->json([
                 'success' => false,
-                'errors' => ['server' => ['Failed to delete the organization.']]
+                'errors' => ['server' => [__('Failed to delete the organization.')]]
             ], 500); // 500 Internal Server Error
 
         } catch (\Exception $e) {
@@ -530,7 +531,7 @@ class DeviceCloudProvisioningController extends Controller
             if (!$provisioning) {
                 return response()->json([
                     'success' => false,
-                    'messages' => ['error' => ['Provisioning entry not found.']],
+                    'messages' => ['error' => [__('Provisioning entry not found.')]],
                     'data' => [],
                 ], 404);
             }
@@ -539,7 +540,7 @@ class DeviceCloudProvisioningController extends Controller
 
             return response()->json([
                 'success' => true,
-                'messages' => ['success' => ['Provisioning entry has been reset (deleted).']],
+                'messages' => ['success' => [__('Provisioning entry has been reset (deleted).')]],
                 'data' => [],
             ]);
         } catch (\Throwable $e) {
@@ -563,7 +564,7 @@ class DeviceCloudProvisioningController extends Controller
             $cloudProvider = $cloudProviderSelector->getCloudProvider(request('provider'));
 
             if (!$cloudProvider) {
-                throw new \Exception('Unsupported cloud provisioning provider.');
+                throw new \Exception(__('Unsupported cloud provisioning provider.'));
             }
 
             // 1. Get local devices (mac => uuid)
@@ -589,7 +590,7 @@ class DeviceCloudProvisioningController extends Controller
             do {
                 $response = $cloudProvider->getDevices($limit, $next);
                 if (!($response['success'] ?? false)) {
-                    throw new \Exception($response['error'] ?? 'Unable to sync cloud provisioning devices.');
+                    throw new \Exception($response['error'] ?? __('Unable to sync cloud provisioning devices.'));
                 }
                 if (isset($response['data']['results']) && is_array($response['data']['results'])) {
                     foreach ($response['data']['results'] as $providerDevice) {
@@ -625,14 +626,14 @@ class DeviceCloudProvisioningController extends Controller
 
 
             return response()->json([
-                'messages' => ['success' => ['Devices are successfully synced']]
+                'messages' => ['success' => [__('Devices are successfully synced')]]
             ], 200);
         } catch (\Exception $e) {
             logger($e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
             return response()->json([
                 'status' => 500,
                 'error' => [
-                    'message' => 'An unexpected error occurred. Please try again later.',
+                    'message' => __('An unexpected error occurred. Please try again later.'),
                 ],
             ]);
         }
@@ -653,6 +654,20 @@ class DeviceCloudProvisioningController extends Controller
                 ->whereIn('device_uuid', request('items'))
                 ->get();
 
+            $yealinkDevices = $items->where('device_vendor', 'yealink');
+            if ($yealinkDevices->isNotEmpty() && app(YealinkRpsCloudProvider::class)->requiresSerialNumber()) {
+                $errors = [];
+                foreach ($yealinkDevices as $device) {
+                    if (blank($device->serial_number)) {
+                        $errors[$device->device_uuid] = [$device->device_address . ': ' . __('Save a serial number on this device before adding it to Yealink RPS.')];
+                    }
+                }
+
+                if ($errors !== []) {
+                    return response()->json(['errors' => $errors, 'messages' => $errors], 422);
+                }
+            }
+
             foreach ($items as $device) {
 
                 $params = [
@@ -660,6 +675,7 @@ class DeviceCloudProvisioningController extends Controller
                     'domain_uuid' => $device->domain_uuid,
                     'device_vendor' => $device->device_vendor,
                     'device_address' => $device->device_address,
+                    'serial_number' => $device->serial_number,
                 ];
 
                 $job = (new DeviceCloudProvisioningService)->register($params);
@@ -668,7 +684,7 @@ class DeviceCloudProvisioningController extends Controller
 
             // Return a JSON response indicating success
             return response()->json([
-                'messages' => ['success' => ['Request has been accepted for processing']],
+                'messages' => ['success' => [__('Request has been accepted for processing')]],
             ], 201);
         } catch (\Exception $e) {
             logger('DeviceCloudProvisioningController@register error: ' . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
@@ -710,7 +726,7 @@ class DeviceCloudProvisioningController extends Controller
 
             // Return a JSON response indicating success
             return response()->json([
-                'messages' => ['success' => ['Request has been accepted for processing']],
+                'messages' => ['success' => [__('Request has been accepted for processing')]],
             ], 201);
         } catch (\Exception $e) {
             logger('DeviceCloudProvisioningController@deregister error: ' . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());

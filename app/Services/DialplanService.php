@@ -35,9 +35,9 @@ class DialplanService
         'spawn_stream',
     ];
 
-    public function save(array $validated, ?Dialplans $dialplan = null): Dialplans
+    public function save(array $validated, ?Dialplans $dialplan = null, bool $preserveName = false): Dialplans
     {
-        return DB::transaction(function () use ($validated, $dialplan) {
+        return DB::transaction(function () use ($validated, $dialplan, $preserveName) {
             $dialplan ??= new Dialplans();
             $isNew = !$dialplan->exists;
             $originalContext = $isNew ? null : $dialplan->getRawOriginal('dialplan_context');
@@ -49,7 +49,9 @@ class DialplanService
                 'dialplan_uuid' => $dialplanUuid,
                 'domain_uuid' => blank($validated['domain_uuid'] ?? null) ? null : $validated['domain_uuid'],
                 'hostname' => $this->blankToNull($validated['hostname'] ?? null),
-                'dialplan_name' => $this->sanitizeName($validated['dialplan_name']),
+                'dialplan_name' => $preserveName
+                    ? trim($validated['dialplan_name'])
+                    : $this->sanitizeName($validated['dialplan_name']),
                 'dialplan_number' => $this->blankToNull($validated['dialplan_number'] ?? null),
                 'dialplan_destination' => $validated['dialplan_destination'] ?? 'false',
                 'dialplan_context' => $validated['dialplan_context'],
@@ -60,7 +62,7 @@ class DialplanService
             ];
 
             if ($isNew) {
-                $data['app_uuid'] = (string) Str::uuid();
+                $data['app_uuid'] = $dialplan->app_uuid ?: (string) Str::uuid();
                 $data['insert_date'] = now();
                 $data['insert_user'] = session('user_uuid');
             } else {
@@ -281,11 +283,11 @@ class DialplanService
         $errors = [];
 
         if ($xml === '') {
-            return ['XML is required.'];
+            return [__('XML is required.')];
         }
 
         if ($this->containsDangerousXml($xml)) {
-            $errors[] = 'This XML contains a FreeSWITCH application that is not allowed.';
+            $errors[] = __('This XML contains a FreeSWITCH application that is not allowed.');
         }
 
         $previous = libxml_use_internal_errors(true);
@@ -295,8 +297,8 @@ class DialplanService
         if (!$loaded) {
             $firstError = libxml_get_errors()[0] ?? null;
             $errors[] = $firstError
-                ? trim("XML is invalid: line {$firstError->line}, {$firstError->message}")
-                : 'XML is invalid.';
+                ? __('XML is invalid: line :line, :message', ['line' => $firstError->line, 'message' => trim($firstError->message)])
+                : __('XML is invalid.');
             libxml_clear_errors();
             libxml_use_internal_errors($previous);
 
@@ -307,13 +309,13 @@ class DialplanService
         libxml_use_internal_errors($previous);
 
         if ($document->documentElement?->tagName !== 'extension') {
-            $errors[] = 'Dialplan XML must use an extension element as the root node.';
+            $errors[] = __('Dialplan XML must use an extension element as the root node.');
         }
 
         foreach (['action', 'anti-action'] as $tagName) {
             foreach ($document->getElementsByTagName($tagName) as $node) {
                 if ($this->containsDangerousApplication($node->getAttribute('application'))) {
-                    $errors[] = 'This XML contains a FreeSWITCH application that is not allowed.';
+                    $errors[] = __('This XML contains a FreeSWITCH application that is not allowed.');
                     break 2;
                 }
             }

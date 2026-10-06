@@ -183,8 +183,7 @@ class GatewayService
         $service = $this->makeEslService();
 
         if (! $service->isConnected()) {
-            logger('GatewayService: unable to connect to FreeSWITCH; gateway runtime synchronization was deferred.');
-            session(['reload_xml' => true]);
+            logger('GatewayService: unable to connect to FreeSWITCH; gateway runtime synchronization failed.');
 
             return false;
         }
@@ -218,15 +217,13 @@ class GatewayService
             $service->disconnect();
         }
 
-        session(['reload_xml' => ! $success]);
-
         return $success;
     }
 
     public function executeGatewayCommand(string $action, Gateways $gateway): ?string
     {
         if ($gateway->enabled !== 'true') {
-            return 'Skipped: gateway is disabled.';
+            return __('Skipped: gateway is disabled.');
         }
 
         $command = match ($action) {
@@ -242,7 +239,7 @@ class GatewayService
         $service = $this->makeEslService();
 
         if (!$service->isConnected()) {
-            return '-ERR Could not connect to FreeSWITCH event socket.';
+            return '-ERR ' . __('Could not connect to FreeSWITCH event socket.');
         }
 
         return (string) $service->executeCommand($command);

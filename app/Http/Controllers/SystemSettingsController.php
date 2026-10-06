@@ -11,10 +11,13 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Redirector;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Contracts\Foundation\Application;
+use App\Http\Requests\UpdateSipCaptureSettingsRequest;
 use App\Http\Requests\UpdateSystemSettingsRequest;
 use App\Services\Settings\SettingsManagementService;
 use App\Services\Settings\SystemSettingsSchema;
+use App\Services\SipCaptureService;
 
 class SystemSettingsController extends Controller
 {
@@ -24,6 +27,7 @@ class SystemSettingsController extends Controller
     public function __construct(
         private readonly SettingsManagementService $settings,
         private readonly SystemSettingsSchema $schema,
+        private readonly SipCaptureService $sipCapture,
     ) {
         $this->model = new DefaultSettings();
     }
@@ -45,6 +49,13 @@ class SystemSettingsController extends Controller
                 'routes' => [
                     'dashboard_route' => route('dashboard'),
                     'settings_update' => route('system-settings.update'),
+                    'number_translations' => [
+                        'index' => route('number-translations.index'),
+                        'store' => route('number-translations.store'),
+                        'item' => route('number-translations.show', ['number_translation' => '__UUID__']),
+                        'sync' => route('number-translations.sync'),
+                    ],
+                    'sip_capture_update' => route('system-settings.sip_capture.update'),
                     'payment_gateways' => route('system-settings.payment_gateways'),
                     'payment_gateway_update' => route('gateway.update'),
                     'payment_gateway_deactivate' => route('gateway.deactivate'),
@@ -56,8 +67,7 @@ class SystemSettingsController extends Controller
                     'assemblyai_route' => route('call-transcription.assemblyai'),
                     'assemblyai_store_route' => route('call-transcription.assemblyai.store'),
                 ],
-                // Schema-driven General tab. Same declarative fields as the
-                // account surface, but these are the global default_settings
+                // Schema-driven General tab. These are the global default_settings
                 // values every account inherits unless it sets its own.
                 'settings_schema' => $this->schema->fields(),
                 'settings_options' => function () {
@@ -66,11 +76,55 @@ class SystemSettingsController extends Controller
                 'settings_values' => function () {
                     return $this->schema->values();
                 },
+                'sip_capture' => function () {
+                    return $this->canViewSipCapture()
+                        ? $this->sipCapture->settings()
+                        : null;
+                },
+                'scheduled_jobs' => function () {
+                    return userCheckPermission('scheduled_jobs_manage')
+                        ? app(ScheduledJobCoordinationController::class)->controlProps()
+                        : null;
+                },
                 'permissions' => function () {
                     return $this->getUserPermissions();
                 },
             ]
         );
+    }
+
+    public function updateSipCapture(UpdateSipCaptureSettingsRequest $request): JsonResponse
+    {
+        if (! $this->canEditSipCapture()) {
+            return response()->json(['errors' => ['authorization' => [__('Access denied.')]]], 403);
+        }
+
+        try {
+            $result = $this->sipCapture->save($request->validated());
+            $messages = ['success' => [__('SIP capture settings saved.')]];
+
+            if (! $result['runtime_synchronized']) {
+                $messages['error'] = [__(
+                    __('The settings were saved, but FreeSWITCH could not apply them live. Check the event socket and rescan the affected SIP profiles.')
+                )];
+            }
+
+            return response()->json([
+                'messages' => $messages,
+                'runtime_synchronized' => $result['runtime_synchronized'],
+                'server_hostname' => $result['server_hostname'],
+                'capture_id' => $result['capture_id'],
+            ]);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            logger('SystemSettingsController@updateSipCapture: ' . $e->getMessage()
+                . ' at ' . $e->getFile() . ':' . $e->getLine());
+
+            return response()->json([
+                'errors' => ['server' => [__('Server returned an error while saving SIP capture settings.')]],
+            ], 500);
+        }
     }
 
     /**
@@ -79,7 +133,7 @@ class SystemSettingsController extends Controller
     public function update(UpdateSystemSettingsRequest $request): JsonResponse
     {
         if (!userCheckPermission('default_setting_edit')) {
-            return response()->json(['errors' => ['authorization' => ['Access denied.']]], 403);
+            return response()->json(['errors' => ['authorization' => [__('Access denied.')]]], 403);
         }
 
         try {
@@ -90,7 +144,7 @@ class SystemSettingsController extends Controller
             DB::commit();
 
             return response()->json([
-                'messages' => ['server' => ['Settings updated successfully.']],
+                'messages' => ['server' => [__('Settings updated successfully.')]],
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -99,7 +153,7 @@ class SystemSettingsController extends Controller
 
             return response()->json([
                 'success' => false,
-                'errors' => ['server' => ['Server returned an error while processing your request.']]
+                'errors' => ['server' => [__('Server returned an error while processing your request.')]]
             ], 500);
         }
     }
@@ -117,11 +171,6 @@ class SystemSettingsController extends Controller
     {
         $fields = collect($this->schema->fields())->keyBy('key');
 
-        $existing = DefaultSettings::query()
-            ->whereIn('default_setting_subcategory', $fields->pluck('subcategory')->all())
-            ->get()
-            ->keyBy('default_setting_subcategory');
-
         foreach ($submitted as $key => $value) {
             $field = $fields->get($key);
             if (! $field) {
@@ -133,7 +182,11 @@ class SystemSettingsController extends Controller
                 continue; // never blank a global default
             }
 
-            $row = $existing->get($field['subcategory']);
+            $row = DefaultSettings::query()
+                ->where('default_setting_category', $field['category'])
+                ->where('default_setting_subcategory', $field['subcategory'])
+                ->where('default_setting_name', $field['name'])
+                ->first();
             if ($row && (string) $row->default_setting_value === (string) $value) {
                 continue; // unchanged
             }
@@ -174,7 +227,7 @@ class SystemSettingsController extends Controller
             );
 
             return response()->json([
-                'messages' => ['error' => ['Something went wrong while loading payment gateways.']],
+                'messages' => ['error' => [__('Something went wrong while loading payment gateways.')]],
             ], 500);
         }
     }
@@ -182,11 +235,30 @@ class SystemSettingsController extends Controller
     public function getUserPermissions()
     {
         $permissions = [];
+        $permissions['scheduled_jobs_manage'] = userCheckPermission('scheduled_jobs_manage');
         $permissions['payment_gateways_view'] = userCheckPermission('payment_gateways_view');
         $permissions['call_transcription_settings_view'] = userCheckPermission('call_transcription_settings_view');
         $permissions['default_setting_view'] = userCheckPermission('default_setting_view');
         $permissions['default_setting_edit'] = userCheckPermission('default_setting_edit');
+        foreach (['view', 'add', 'edit', 'delete'] as $action) {
+            $permissions['number_translation_' . $action] = userCheckPermission('number_translation_' . $action);
+        }
+        $permissions['sip_capture_view'] = $this->canViewSipCapture();
+        $permissions['sip_capture_edit'] = $this->canEditSipCapture();
 
         return $permissions;
+    }
+
+    private function canViewSipCapture(): bool
+    {
+        return userCheckPermission('sofia_global_setting_view')
+            && userCheckPermission('sip_profile_view');
+    }
+
+    private function canEditSipCapture(): bool
+    {
+        return userCheckPermission('sofia_global_setting_edit')
+            && userCheckPermission('sip_profile_setting_add')
+            && userCheckPermission('sip_profile_setting_edit');
     }
 }

@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Support\Localization\ValidationMessages;
+
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -17,6 +19,7 @@ class UpdateCloudProviderCredentialsRequest extends FormRequest
     {
         return [
             'provider' => ['required', 'string', Rule::in(['polycom', 'yealink'])],
+            'require_serial_number' => ['sometimes', 'boolean'],
             'token' => ['nullable', 'required_if:provider,polycom', 'string'],
             'access_key_id' => ['nullable', 'required_if:provider,yealink', 'string', 'max:255'],
             'access_key_secret' => ['nullable', 'required_if:provider,yealink', 'string', 'max:255'],
@@ -44,5 +47,22 @@ class UpdateCloudProviderCredentialsRequest extends FormRequest
                 $this->merge([$field => trim((string) $this->input($field))]);
             }
         }
+    }
+
+    public function messages(): array
+    {
+        return ValidationMessages::common();
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'provider' => __('Provider'),
+            'require_serial_number' => __('Require serial number'),
+            'token' => __('API Token'),
+            'access_key_id' => __('Access Key ID'),
+            'access_key_secret' => __('Access Key Secret'),
+            'api_url' => __('API URL'),
+        ];
     }
 }

@@ -12,6 +12,7 @@ use App\Models\GroupPermissions;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Models\PaymentGateway;
 use App\Models\GatewaySetting;
@@ -153,6 +154,18 @@ class DatabaseSeeder extends Seeder
             ['application_name' => 'User Manager', 'permission_name' => 'api_key_create'],
             ['application_name' => 'User Manager', 'permission_name' => 'api_key_update'],
             ['application_name' => 'User Manager', 'permission_name' => 'api_key_delete'],
+            ['application_name' => 'System Settings', 'permission_name' => 'scheduled_jobs_manage'],
+            ['application_name' => 'Number Translations', 'permission_name' => 'number_translation_view'],
+            ['application_name' => 'Number Translations', 'permission_name' => 'number_translation_add'],
+            ['application_name' => 'Number Translations', 'permission_name' => 'number_translation_edit'],
+            ['application_name' => 'Number Translations', 'permission_name' => 'number_translation_delete'],
+            ['application_name' => 'Directory Services', 'permission_name' => 'ldap_directory_view'],
+            ['application_name' => 'Directory Services', 'permission_name' => 'ldap_directory_create'],
+            ['application_name' => 'Directory Services', 'permission_name' => 'ldap_directory_update'],
+            ['application_name' => 'Directory Services', 'permission_name' => 'ldap_directory_delete'],
+            ['application_name' => 'Directory Services', 'permission_name' => 'ldap_directory_test'],
+            ['application_name' => 'Directory Services', 'permission_name' => 'ldap_directory_sync'],
+            ['application_name' => 'Directory Services', 'permission_name' => 'ldap_directory_map_groups'],
             ['application_name' => 'Extensions', 'permission_name' => 'extension_device_create'],
             ['application_name' => 'Extensions', 'permission_name' => 'extension_device_assign'],
             ['application_name' => 'Extensions', 'permission_name' => 'extension_device_unassign'],
@@ -232,6 +245,10 @@ class DatabaseSeeder extends Seeder
             ['application_name' => 'AI Agents', 'permission_name' => 'ai_agent_manage_domain'],
             ['application_name' => 'AI Agents', 'permission_name' => 'ai_agent_manage_provider'],
             ['application_name' => 'AI Agents', 'permission_name' => 'ai_agent_manage_integration'],
+            ['application_name' => 'Dynamic Routes', 'permission_name' => 'dynamic_route_view'],
+            ['application_name' => 'Dynamic Routes', 'permission_name' => 'dynamic_route_create'],
+            ['application_name' => 'Dynamic Routes', 'permission_name' => 'dynamic_route_update'],
+            ['application_name' => 'Dynamic Routes', 'permission_name' => 'dynamic_route_delete'],
         ];
         $timestamp = date("Y-m-d H:i:s");
 
@@ -258,12 +275,18 @@ class DatabaseSeeder extends Seeder
         if (!empty($toInsert)) {
             Permissions::insert($toInsert);
         }
+
     }
 
     private function createGroupPermissions()
     {
         $permissionsByGroup = [
             'superadmin' => [
+                'scheduled_jobs_manage',
+                'number_translation_view',
+                'number_translation_add',
+                'number_translation_edit',
+                'number_translation_delete',
                 'message_settings_list_view',
                 'extension_suspended',
                 'mobile_apps_password_url_show',
@@ -305,6 +328,13 @@ class DatabaseSeeder extends Seeder
                 'api_key_create',
                 'api_key_update',
                 'api_key_delete',
+                'ldap_directory_view',
+                'ldap_directory_create',
+                'ldap_directory_update',
+                'ldap_directory_delete',
+                'ldap_directory_test',
+                'ldap_directory_sync',
+                'ldap_directory_map_groups',
                 'extension_device_create',
                 'extension_device_assign',
                 'extension_device_unassign',
@@ -385,6 +415,10 @@ class DatabaseSeeder extends Seeder
                 'ai_agent_manage_domain',
                 'ai_agent_manage_provider',
                 'ai_agent_manage_integration',
+                'dynamic_route_view',
+                'dynamic_route_create',
+                'dynamic_route_update',
+                'dynamic_route_delete',
             ],
             'admin' => [
                 'call_webhook_view',
@@ -451,6 +485,10 @@ class DatabaseSeeder extends Seeder
                 'basic_dialer_start',
                 'phone_control_view',
                 'phone_control_call',
+                'dynamic_route_view',
+                'dynamic_route_create',
+                'dynamic_route_update',
+                'dynamic_route_delete',
             ],
             'Message Admin' => [
                 'message_settings_list_view',
@@ -531,41 +569,49 @@ class DatabaseSeeder extends Seeder
                 'default_setting_category'      => 'mobile_apps',
                 'default_setting_subcategory'   => 'apple_store_link',
                 'default_setting_name'          => 'text',
-                'default_setting_value'         => "",
+                'default_setting_value'         => 'https://apps.apple.com/app/id1176246999',
                 'default_setting_enabled'       => true,
-                'default_setting_description'   => "",
+                'default_setting_description'   => '',
             ],
             [
                 'default_setting_category'      => 'mobile_apps',
                 'default_setting_subcategory'   => 'google_play_link',
                 'default_setting_name'          => 'text',
-                'default_setting_value'         => "",
+                'default_setting_value'         => 'https://play.google.com/store/apps/details?id=smile.ringotel',
                 'default_setting_enabled'       => true,
-                'default_setting_description'   => "",
+                'default_setting_description'   => '',
             ],
             [
                 'default_setting_category'      => 'mobile_apps',
                 'default_setting_subcategory'   => 'mac_link',
                 'default_setting_name'          => 'text',
-                'default_setting_value'         => "",
+                'default_setting_value'         => 'https://apps.ringotel.co/Ringotel/macOS_arm64',
                 'default_setting_enabled'       => true,
-                'default_setting_description'   => "",
+                'default_setting_description'   => '',
             ],
             [
                 'default_setting_category'      => 'mobile_apps',
                 'default_setting_subcategory'   => 'windows_link',
                 'default_setting_name'          => 'text',
-                'default_setting_value'         => "",
+                'default_setting_value'         => 'https://apps.ringotel.co/Ringotel/Windows',
                 'default_setting_enabled'       => true,
-                'default_setting_description'   => "",
+                'default_setting_description'   => '',
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'dont_send_user_credentials',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'false',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Don't include user credentials in the welcome email",
             ],
             [
                 'default_setting_category'      => 'mobile_apps',
                 'default_setting_subcategory'   => 'mobile_app_conn_protocol',
                 'default_setting_name'          => 'text',
-                'default_setting_value'         => "",
+                'default_setting_value'         => 'sip',
                 'default_setting_enabled'       => true,
-                'default_setting_description'   => "sip or tcp or sips",
+                'default_setting_description'   => "Options: sip or sip-tcp or sips or DNS-NAPTR",
             ],
             [
                 'default_setting_category'      => 'mobile_apps',
@@ -579,39 +625,240 @@ class DatabaseSeeder extends Seeder
                 'default_setting_category'      => 'mobile_apps',
                 'default_setting_subcategory'   => 'organization_region',
                 'default_setting_name'          => 'text',
-                'default_setting_value'         => "",
+                'default_setting_value'         => '1',
                 'default_setting_enabled'       => true,
-                'default_setting_description'   => "1 - US East, 2 - US West, 3 - Europe (Frankfurt), 4 - Asia Pacific (Singapore), 5 - Europe (London)",
+                'default_setting_description'   => "1 - US East, 2 - US West, 3 - Europe (Frankfurt), 4 - Asia Pacific (Singapore), 5 - Europe (London), 6 - India, 7 - Australia, 8 - Europe (Dublin), 9 - Canada (Central), 10 - South Africa",
             ],
             [
                 'default_setting_category'      => 'mobile_apps',
-                'default_setting_subcategory'   => 'dont_send_user_credentials',
-                'default_setting_name'          => 'boolean',
-                'default_setting_value'         => "false",
+                'default_setting_subcategory'   => 'package',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => '1',
                 'default_setting_enabled'       => true,
-                'default_setting_description'   => "Don't include user credentials in the welcome email",
+                'default_setting_description'   => "1 - Essentials, 2 - Pro",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'connection_port',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => '',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'dont_verify_server_certificate',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'true',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'disable_srtp',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'true',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'multitenant_mode',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'false',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'allow_call_recording',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'false',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'max_registrations',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => '3',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Max. number of parallel registrations per softphone user.",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'registration_ttl',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => '3600',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'voicemail_extension',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => '*97',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'pbx_features',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'true',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'dnd_on_code',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => '*78',
+                'default_setting_enabled'       => false,
+                'default_setting_description'   => "",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'dnd_off_code',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => '*79',
+                'default_setting_enabled'       => false,
+                'default_setting_description'   => "",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'cf_on_code',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => '*72',
+                'default_setting_enabled'       => false,
+                'default_setting_description'   => "The feature code used to activate CF",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'cf_off_code',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => '*73',
+                'default_setting_enabled'       => false,
+                'default_setting_description'   => "The feature code used to deactivate CF",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'g711u_enabled',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'true',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Enable G711 Ulaw codec",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'g711a_enabled',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'true',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Enable G711 Alaw codec",
             ],
             [
                 'default_setting_category'      => 'mobile_apps',
                 'default_setting_subcategory'   => 'g722_enabled',
                 'default_setting_name'          => 'boolean',
-                'default_setting_value'         => "false",
+                'default_setting_value'         => 'false',
                 'default_setting_enabled'       => true,
-                'default_setting_description'   => "Enable G722 Codec",
+                'default_setting_description'   => "Enable G722 codec",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'g729_enabled',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'false',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Enable G729 codec",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'opus_enabled',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'false',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Enable OPUS codec",
             ],
             [
                 'default_setting_category'      => 'mobile_apps',
                 'default_setting_subcategory'   => 'codec_priority',
                 'default_setting_name'          => 'text',
-                'default_setting_value'         => "G.711 Ulaw, G.711 Alaw, G.722, G.729, Opus",
+                'default_setting_value'         => 'G.711 Ulaw, G.711 Alaw, G.722, G.729, Opus',
                 'default_setting_enabled'       => true,
                 'default_setting_description'   => "Default priority order for audio codecs",
             ],
             [
                 'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'show_call_settings',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'true',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Allow users to configure call settings from within the app, such as call forwarding, voicemail, call waiting.",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'allow_state_change',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'true',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Allow users to change their state from the app, such as Online/DND/At the desk.",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'allow_video_calls',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'true',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Allow users to make 1-on-1 video calls.",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'allow_internal_chat',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'true',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Allow users to use internal chat feature and create new chats.",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'disable_iphone_recents',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'true',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "If enabled, this option disables call history syncing in iPhone Recents and hides the 'Show calls in iPhone Recents' option from the app's settings.",
+            ],
+
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'app_opus_codec',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'true',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Enable the OPUS audio codec between the softphone apps and a softphone server.",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'one_push',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'false',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Don't send a second push notification in the case of the user's mobile app was not waked up by the first one.",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
+                'default_setting_subcategory'   => 'call_delay',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => '10',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Delay incoming calls to the desktop app",
+            ],
+            [
+                'default_setting_category'      => 'mobile_apps',
                 'default_setting_subcategory'   => 'allow_block_contacts',
                 'default_setting_name'          => 'boolean',
-                'default_setting_value'         => "true",
+                'default_setting_value'         => 'true',
                 'default_setting_enabled'       => true,
                 'default_setting_description'   => "Allow users to block contacts by default for new mobile app connections.",
             ],
@@ -619,7 +866,7 @@ class DatabaseSeeder extends Seeder
                 'default_setting_category'      => 'mobile_apps',
                 'default_setting_subcategory'   => 'sms_mode',
                 'default_setting_name'          => 'text',
-                'default_setting_value'         => "2",
+                'default_setting_value'         => '2',
                 'default_setting_enabled'       => true,
                 'default_setting_description'   => "Default SMS mode for new mobile app connections. Options: 0 = Disabled, 2 = via API, 3 = via Integrations.",
             ],
@@ -627,29 +874,27 @@ class DatabaseSeeder extends Seeder
                 'default_setting_category'      => 'mobile_apps',
                 'default_setting_subcategory'   => 'custom_web_pages',
                 'default_setting_name'          => 'text',
-                'default_setting_value'         => "[]",
+                'default_setting_value'         => '[]',
                 'default_setting_enabled'       => true,
                 'default_setting_description'   => 'Default custom web pages for new mobile app connections as JSON. Example: [{"title":"Caller ID","url":"https://example.com/path?user=$userid$"}]',
             ],
-            /*[
+            [
                 'default_setting_category'      => 'mobile_apps',
-                'default_setting_subcategory'   => 'password_url_show',
+                'default_setting_subcategory'   => 'desktop_app_delay',
                 'default_setting_name'          => 'boolean',
-                'default_setting_value'         => "false",
+                'default_setting_value'         => 'false',
                 'default_setting_enabled'       => true,
-                'default_setting_description'   => "Display 'Get Password' link on the success notification pop-up",
-            ],*/
-
+                'default_setting_description'   => "Delay incoming calls to the desktop app",
+            ],
         ];
 
-        // Log::alert(Category::where('name', trans('custom-fields::general.categories.cost_recovery'))->where('company_id', $company_id)->value('id'));
+        // Add missing defaults on installs and updates; preserve existing settings.
         foreach ($settings as $setting) {
             $existing_item = DefaultSettings::where('default_setting_category', $setting['default_setting_category'])
                 ->where('default_setting_subcategory', $setting['default_setting_subcategory'])
                 ->first();
 
             if (empty($existing_item)) {
-                // Add new group
                 DefaultSettings::create([
                     'default_setting_category'      => $setting['default_setting_category'],
                     'default_setting_subcategory'   => $setting['default_setting_subcategory'],
@@ -665,6 +910,14 @@ class DatabaseSeeder extends Seeder
     private function createDefaultSettings()
     {
         $settings = [
+            [
+                'default_setting_category'      => 'dialplan',
+                'default_setting_subcategory'   => 'outbound_route_default_scope',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => 'global',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => 'Outbound Route Default Scope. Options: global (default), current_domain. Sets the initial domain and context for new outbound routes.',
+            ],
             [
                 'default_setting_category'      => 'pms',
                 'default_setting_subcategory'   => 'pms_provider',
@@ -995,11 +1248,35 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'default_setting_category'      => 'provision',
+                'default_setting_subcategory'   => 'grandstream_firmware_upgrade_confirmation',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => 'Yes',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => 'Require confirmation before a Grandstream firmware upgrade. Use Yes or No. Default: Yes.',
+            ],
+            [
+                'default_setting_category'      => 'provision',
+                'default_setting_subcategory'   => 'grandstream_default_ringtone',
+                'default_setting_name'          => 'numeric',
+                'default_setting_value'         => '0',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => 'Default Grandstream ringtone: 0 = System Ringtone, 1 = Custom Ringtone 1, 2 = Custom Ringtone 2, 3 = Custom Ringtone 3, 4 = Silent. Default: 0.',
+            ],
+            [
+                'default_setting_category'      => 'provision',
                 'default_setting_subcategory'   => 'drop_self_extension_keys',
                 'default_setting_name'          => 'boolean',
                 'default_setting_value'         => "true",
                 'default_setting_enabled'       => true,
                 'default_setting_description'   => "Prevents the phone from provisioning duplicate self-monitoring keys by removing non-line keys that point to its own extensions. Turn this off when you intentionally want those keys to be kept.",
+            ],
+            [
+                'default_setting_category'      => 'provision',
+                'default_setting_subcategory'   => 'park_key_count',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => '10',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => 'Number of predefined Park options in device and key template editors, starting at 5901. Use 1-99; missing or invalid values use 10.',
             ],
             [
                 'default_setting_category'      => 'company',
@@ -1011,11 +1288,19 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'default_setting_category'      => 'scheduled_jobs',
+                'default_setting_subcategory'   => 's3_upload_calls',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => "true",
+                'default_setting_enabled'       => false,
+                'default_setting_description'   => "Enable this row to control S3 uploads globally (true/false). While disabled, existing enabled MAC switches preserve upload enablement. Scheduled job server selection takes priority over MAC selection when definite.",
+            ],
+            [
+                'default_setting_category'      => 'scheduled_jobs',
                 'default_setting_subcategory'   => 's3_upload_calls_' . $this->getMacAddress(),
                 'default_setting_name'          => 'boolean',
                 'default_setting_value'         => "true",
                 'default_setting_enabled'       => false,
-                'default_setting_description'   => "Executes upload job only on the server with MAC address " . $this->getMacAddress(),
+                'default_setting_description'   => "Legacy S3 upload selection for MAC address " . $this->getMacAddress() . ". Used only when Scheduled job server ownership is unavailable or uncertain.",
             ],
             [
                 'default_setting_category'      => 'scheduled_jobs',
@@ -1144,6 +1429,30 @@ class DatabaseSeeder extends Seeder
                 'default_setting_value'         => "false",
                 'default_setting_enabled'       => true,
                 'default_setting_description'   => "Enable or disable the processing of scheduled announcements.",
+            ],
+            [
+                'default_setting_category'      => 'scheduled_jobs',
+                'default_setting_subcategory'   => 'active_node',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => "",
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "PostgreSQL system identifier of the approved server that owns coordinated scheduled jobs.",
+            ],
+            [
+                'default_setting_category'      => 'scheduled_jobs',
+                'default_setting_subcategory'   => 'active_node_generation',
+                'default_setting_name'          => 'numeric',
+                'default_setting_value'         => "0",
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Ownership generation for coordinated scheduled jobs. Incremented when ownership changes.",
+            ],
+            [
+                'default_setting_category'      => 'scheduled_jobs',
+                'default_setting_subcategory'   => 'coordination_secret',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => "",
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => "Shared secret used to authenticate scheduled-job coordination between approved FS PBX nodes.",
             ],
             [
                 'default_setting_category'      => 'scheduled_jobs',
@@ -1554,6 +1863,22 @@ class DatabaseSeeder extends Seeder
                 'default_setting_enabled'       => false,
                 'default_setting_description'   => "It configures the password of a specific wireless network.",
             ],
+            [
+                'default_setting_category'      => 'provision',
+                'default_setting_subcategory'   => 'yealink_outbound_proxy_enable',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => '0',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => 'Enable the Yealink outbound proxy when a primary proxy is configured. 0-Disabled. 1-Enabled.',
+            ],
+            [
+                'default_setting_category'      => 'provision',
+                'default_setting_subcategory'   => 'yealink_backlight_time',
+                'default_setting_name'          => 'text',
+                'default_setting_value'         => '600',
+                'default_setting_enabled'       => false,
+                'default_setting_description'   => 'Backlight timeout in seconds. Enable to override the provisioning template default; supported values depend on the phone model.',
+            ],
 
 
 
@@ -1582,7 +1907,22 @@ class DatabaseSeeder extends Seeder
 
         // Build ONLY the missing rows
         $toInsert = [];
+        // These rows have one writer in HA. Keep their catalog definitions, but
+        // let initial coordination create missing rows on its elected writer.
+        // Running this seeder independently on two subscribers must not create
+        // different UUIDs for the same global ownership setting.
+        $coordinationIsReplicated = false;
+        try {
+            $coordinationIsReplicated = DB::connection()->getDriverName() === 'pgsql'
+                && (bool) DB::selectOne('select exists(select 1 from pg_subscription) as present')->present;
+        } catch (\Throwable) {
+            $coordinationIsReplicated = true;
+        }
         foreach ($settings as $s) {
+            if ($coordinationIsReplicated && $s['default_setting_category'] === 'scheduled_jobs'
+                && in_array($s['default_setting_subcategory'], ['active_node', 'active_node_generation', 'coordination_secret'], true)) {
+                continue;
+            }
             $key = "{$s['default_setting_category']}|{$s['default_setting_subcategory']}|{$s['default_setting_name']}";
             if (!isset($existingLookup[$key])) {
                 $toInsert[] = [
