@@ -85,9 +85,39 @@ class Messages extends Model
         return $this->belongsTo(Domain::class, 'domain_uuid', 'domain_uuid');
     }
 
+    public function isWebhookInbound(): bool
+    {
+        return $this->direction === 'in' && data_get($this->delivery_meta, 'inbound.method') === 'webhook';
+    }
+
+    public function isApiOutbound(): bool
+    {
+        return $this->direction === 'out' && data_get($this->delivery_meta, 'outbound.origin') === 'api';
+    }
+
+    public function isExternalOnly(): bool
+    {
+        return $this->isWebhookInbound() || $this->isApiOutbound();
+    }
+
+    public function scopeForInbox(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->where(fn ($query) => $query->where('messages.direction', '!=', 'out')
+            ->orWhereNull('messages.delivery_meta->outbound->origin')
+            ->orWhere('messages.delivery_meta->outbound->origin', '!=', 'api'))
+            ->where(fn ($query) => $query->where('messages.direction', '!=', 'in')
+            ->orWhereNull('messages.delivery_meta->inbound->method')
+            ->orWhere('messages.delivery_meta->inbound->method', '!=', 'webhook'));
+    }
+
     public function group()
     {
         return $this->belongsTo(MessageGroup::class, 'message_group_uuid', 'message_group_uuid');
+    }
+
+    public function outboundWebhookEvents()
+    {
+        return $this->hasMany(OutboundMessageWebhookEvent::class, 'message_uuid', 'message_uuid');
     }
 
     public function roomId(): string

@@ -10,6 +10,7 @@ use App\Http\Controllers\AppsController;
 use App\Http\Controllers\AppsCredentialsController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\BusinessHoursController;
+use App\Http\Controllers\FlagsController;
 use App\Http\Controllers\PagingGroupsController;
 use App\Http\Controllers\BridgeController;
 use App\Http\Controllers\BasicDialerController;
@@ -56,7 +57,6 @@ use App\Http\Controllers\MenuManagerController;
 use App\Http\Controllers\MusicOnHoldController;
 use App\Http\Controllers\PhoneNumbersController;
 use App\Http\Controllers\PinNumberController;
-use App\Http\Controllers\PolycomLogController;
 use App\Http\Controllers\PolycomProvisioningFileController;
 use App\Http\Controllers\ProFeaturesController;
 use App\Http\Controllers\ProvisioningController;
@@ -100,9 +100,6 @@ use Illuminate\Support\Facades\Route;
 Route::get('/extensions/callerid', [ExtensionsController::class, 'callerID'])->withoutMiddleware(['auth'])->name('callerID');
 Route::post('/extensions/{extension}/callerid/update/', [ExtensionsController::class, 'updateCallerID'])->withoutMiddleware(['auth'])->name('updateCallerID');
 
-//Polycom log handling
-Route::put('/polycom/log/{name}', [PolycomLogController::class, 'store'])->withoutMiddleware(['auth', 'web'])->name('log.store');
-Route::get('/polycom/log/{name}', [PolycomLogController::class, 'show'])->withoutMiddleware(['auth', 'web'])->name('log.get');
 // Route::get('/extensions', [ExtensionsController::class, 'index']) ->name('extensionsList');
 
 // Webhooks
@@ -133,8 +130,11 @@ Route::put('/email-challenge', [App\Http\Controllers\Auth\EmailChallengeControll
     ->name('email-challenge.new-code');
 Route::post('/email-challenge', [App\Http\Controllers\Auth\EmailChallengeController::class, 'store']);
 
-// Message media URL for MMS. Carriers fetch it without a session. Skipping the web stack
-// keeps the legacy PHP session's no-store headers and file lock off, so browsers cache photos.
+// Intentionally public: MMS carriers fetch these attachment URLs without a portal
+// session or credentials. The message UUID is the bearer link: anyone who obtains
+// it can read its attachments; the domain selects storage, not caller authorization.
+// Adding login middleware would break carrier delivery. Skipping the web stack also
+// keeps legacy PHP session no-store headers and file locks off these downloads.
 Route::get(
     '/messages/media/{message_uuid}/{index}/{file_name?}',
     [MessageMediaController::class, 'show']
@@ -291,6 +291,8 @@ Route::group(['middleware' => 'auth'], function () {
     // Business hours
     Route::get('business-hours', [BusinessHoursController::class, 'index'])->name('business-hours.index');
 
+    // Flags
+    Route::get('flags', [FlagsController::class, 'index'])->name('flags.index');
     // Paging groups
     Route::get('paging-groups', [PagingGroupsController::class, 'index'])->name('paging-groups.index');
 

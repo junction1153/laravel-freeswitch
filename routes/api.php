@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\LocationsController;
 use App\Http\Controllers\Api\ProvisioningTemplateController;
 use App\Http\Controllers\BasicQueueController;
 use App\Http\Controllers\BusinessHoursController;
+use App\Http\Controllers\FlagsController;
 use App\Http\Controllers\PagingGroupsController;
 use App\Http\Controllers\BridgeController;
 use App\Http\Controllers\CallBlockController;
@@ -246,6 +247,7 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
 
     // Inbound Webhooks
     Route::resource('/inbound-webhooks', InboundWebhooksController::class);
+    Route::get('/outbound-webhooks', [\App\Http\Controllers\OutboundWebhookLogsController::class, 'index'])->name('outbound-webhooks.index');
 
     // Hotel rooms
     Route::resource('/hotel-rooms', HotelRoomController::class);
@@ -339,6 +341,14 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     Route::post('business-hours/select-all', [BusinessHoursController::class, 'selectAll'])->name('business-hours.select.all');
     Route::post('business-hours/duplicate', [BusinessHoursController::class, 'duplicate'])->name('business-hours.duplicate');
 
+    // Flags
+    Route::get('flags/data', [FlagsController::class, 'getData'])->name('flags.data');
+    Route::post('flags', [FlagsController::class, 'store'])->name('flags.store');
+    Route::put('flags/{flag}', [FlagsController::class, 'update'])->name('flags.update');
+    Route::post('flags/item-options', [FlagsController::class, 'getItemOptions'])->name('flags.item.options');
+    Route::post('flags/select-all', [FlagsController::class, 'selectAll'])->name('flags.select.all');
+    Route::post('flags/bulk-delete', [FlagsController::class, 'bulkDelete'])->name('flags.bulk.delete');
+    Route::post('flags/bulk-toggle', [FlagsController::class, 'bulkToggle'])->name('flags.bulk.toggle');
     // Paging groups
     Route::get('paging-groups/data', [PagingGroupsController::class, 'getData'])->name('paging-groups.data');
     Route::post('paging-groups', [PagingGroupsController::class, 'store'])->name('paging-groups.store');
@@ -890,6 +900,10 @@ Route::group(['middleware' => ['auth:sanctum', 'api.cookie.auth']], function () 
     Route::put('account-settings/pms-provider', [AccountSettingsController::class, 'updatePmsProvider'])->name('account-settings.pms-provider.update');
     Route::put('account-settings/update', [AccountSettingsController::class, 'update'])->name('account-settings.update');
     Route::put('account-settings/messaging', [AccountSettingsController::class, 'updateMessaging'])->name('account-settings.messaging.update');
+    Route::put('account-settings/message-webhook', [\App\Http\Controllers\MessageWebhookSettingsController::class, 'update'])
+        ->name('account-settings.message-webhook.update');
+    Route::post('account-settings/message-webhook/secret', [\App\Http\Controllers\MessageWebhookSettingsController::class, 'secret'])
+        ->name('account-settings.message-webhook.secret');
     Route::delete('account-settings/messaging', [AccountSettingsController::class, 'destroyMessaging'])->name('account-settings.messaging.destroy');
 
     // Default Settings

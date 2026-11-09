@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
 use App\Models\PaymentGateway;
 use App\Models\GatewaySetting;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Nwidart\Modules\Facades\Module;
 
 class DatabaseSeeder extends Seeder
@@ -123,8 +124,10 @@ class DatabaseSeeder extends Seeder
             ['application_name' => 'Fax Server', 'permission_name' => 'fax_delete'],
             ['application_name' => 'Fax Server', 'permission_name' => 'fax_send'],
             ['application_name' => 'Fax Server', 'permission_name' => 'fax_inbox_view'],
+            ['application_name' => 'Fax Server', 'permission_name' => 'fax_inbox_download'],
             ['application_name' => 'Fax Server', 'permission_name' => 'fax_inbox_delete'],
             ['application_name' => 'Fax Server', 'permission_name' => 'fax_sent_view'],
+            ['application_name' => 'Fax Server', 'permission_name' => 'fax_sent_download'],
             ['application_name' => 'Fax Server', 'permission_name' => 'fax_sent_delete'],
             ['application_name' => 'Fax Server', 'permission_name' => 'fax_log_view'],
             ['application_name' => 'Fax Server', 'permission_name' => 'fax_log_delete'],
@@ -179,6 +182,12 @@ class DatabaseSeeder extends Seeder
             ['application_name' => 'Business Hours', 'permission_name' => 'business_hours_holidays_create'],
             ['application_name' => 'Business Hours', 'permission_name' => 'business_hours_holidays_update'],
             ['application_name' => 'Business Hours', 'permission_name' => 'business_hours_holidays_delete'],
+            ['application_name' => 'Flags', 'permission_name' => 'flags_list_view'],
+            ['application_name' => 'Flags', 'permission_name' => 'flags_create'],
+            ['application_name' => 'Flags', 'permission_name' => 'flags_update'],
+            ['application_name' => 'Flags', 'permission_name' => 'flags_delete'],
+            ['application_name' => 'Flags', 'permission_name' => 'flags_toggle'],
+            ['application_name' => 'Flags', 'permission_name' => 'flags_assign'],
             ['application_name' => 'Paging Groups', 'permission_name' => 'paging_groups_list_view'],
             ['application_name' => 'Paging Groups', 'permission_name' => 'paging_groups_create'],
             ['application_name' => 'Paging Groups', 'permission_name' => 'paging_groups_update'],
@@ -236,6 +245,7 @@ class DatabaseSeeder extends Seeder
             ['application_name' => 'Devices', 'permission_name' => 'device_line_user_id'],
             ['application_name' => 'Devices', 'permission_name' => 'device_template_view_all'],
             ['application_name' => 'Devices', 'permission_name' => 'device_template_view_custom_only'],
+            ['application_name' => 'Devices', 'permission_name' => 'device_template_view_legacy'],
             ['application_name' => 'Devices', 'permission_name' => 'device_provisioning_preview'],
             ['application_name' => 'Phonebooks', 'permission_name' => 'phonebook_view'],
             ['application_name' => 'Phonebooks', 'permission_name' => 'phonebook_create'],
@@ -274,6 +284,7 @@ class DatabaseSeeder extends Seeder
             ['application_name' => 'Call Block', 'permission_name' => 'call_block_delete'],
             ['application_name' => 'Call Block', 'permission_name' => 'call_block_voicemail'],
             ['application_name' => 'Messages', 'permission_name' => 'messages_view'],
+            ['application_name' => 'Messages', 'permission_name' => 'messages_send'],
             ['application_name' => 'Messages', 'permission_name' => 'messages_view_as'],
             ['application_name' => 'Messages', 'permission_name' => 'messages_delete'],
             ['application_name' => 'Basic Dialer', 'permission_name' => 'basic_dialer_view'],
@@ -328,6 +339,7 @@ class DatabaseSeeder extends Seeder
     {
         $permissionsByGroup = [
             'superadmin' => [
+                'messages_send',
                 'music_on_hold_view',
                 'music_on_hold_add',
                 'music_on_hold_edit',
@@ -345,8 +357,10 @@ class DatabaseSeeder extends Seeder
                 'fax_delete',
                 'fax_send',
                 'fax_inbox_view',
+                'fax_inbox_download',
                 'fax_inbox_delete',
                 'fax_sent_view',
+                'fax_sent_download',
                 'fax_sent_delete',
                 'fax_log_view',
                 'fax_log_delete',
@@ -455,6 +469,7 @@ class DatabaseSeeder extends Seeder
                 'device_key_template_assign',
                 'device_import',
                 'device_template_view_all',
+                'device_template_view_legacy',
                 'device_provisioning_preview',
                 'phonebook_view',
                 'phonebook_create',
@@ -513,14 +528,17 @@ class DatabaseSeeder extends Seeder
                 'dynamic_route_delete',
             ],
             'admin' => [
+                'messages_send',
                 'fax_view',
                 'fax_add',
                 'fax_edit',
                 'fax_delete',
                 'fax_send',
                 'fax_inbox_view',
+                'fax_inbox_download',
                 'fax_inbox_delete',
                 'fax_sent_view',
+                'fax_sent_download',
                 'fax_sent_delete',
                 'fax_log_view',
                 'fax_log_delete',
@@ -578,6 +596,7 @@ class DatabaseSeeder extends Seeder
                 'extension_mobile_app_settings',
                 'extension_voicemail_settings',
                 'device_template_view_all',
+                'device_template_view_legacy',
                 'device_key_template_view',
                 'device_key_template_create',
                 'device_key_template_update',
@@ -698,6 +717,7 @@ class DatabaseSeeder extends Seeder
 
         if (!empty($toInsert)) {
             GroupPermissions::insert($toInsert); // insert-only, no updates
+            Cache::tags(['permissions'])->flush();
         }
     }
 
@@ -1057,6 +1077,14 @@ class DatabaseSeeder extends Seeder
     private function createDefaultSettings()
     {
         $settings = [
+            [
+                'default_setting_category' => 'flags',
+                'default_setting_subcategory' => 'enabled',
+                'default_setting_name' => 'boolean',
+                'default_setting_value' => 'false',
+                'default_setting_enabled' => true,
+                'default_setting_description' => 'Enable optional Flags routing server-wide. Permissions and BLF startup must be configured separately.',
+            ],
             [
                 'default_setting_category'      => 'dialplan',
                 'default_setting_subcategory'   => 'outbound_route_default_scope',
@@ -1976,6 +2004,70 @@ class DatabaseSeeder extends Seeder
                 'default_setting_value'         => "90",
                 'default_setting_enabled'       => true,
                 'default_setting_description'   => "Specifies the number of days to retain voicemails before they are automatically deleted.",
+            ],
+            [
+                'default_setting_category'      => 'scheduled_jobs',
+                'default_setting_subcategory'   => 'delete_old_messages',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'false',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => 'Automatically deletes SMS/MMS history and stored attachments older than the message retention period.',
+            ],
+            [
+                'default_setting_category'      => 'scheduled_jobs',
+                'default_setting_subcategory'   => 'days_keep_messages',
+                'default_setting_name'          => 'numeric',
+                'default_setting_value'         => '90',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => 'Number of days to retain SMS/MMS history and stored attachments. Must be a positive whole number.',
+            ],
+            [
+                'default_setting_category'      => 'scheduled_jobs',
+                'default_setting_subcategory'   => 'delete_old_message_api_requests',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'true',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => 'Automatically deletes expired message API request records older than the configured retention period.',
+            ],
+            [
+                'default_setting_category'      => 'scheduled_jobs',
+                'default_setting_subcategory'   => 'days_keep_message_api_requests',
+                'default_setting_name'          => 'numeric',
+                'default_setting_value'         => '30',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => 'Number of days to retain expired message API request records. Must be a positive whole number.',
+            ],
+            [
+                'default_setting_category'      => 'scheduled_jobs',
+                'default_setting_subcategory'   => 'delete_old_outbound_message_webhook_events',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'true',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => 'Automatically deletes completed or failed outbound message webhook events older than the configured retention period.',
+            ],
+            [
+                'default_setting_category'      => 'scheduled_jobs',
+                'default_setting_subcategory'   => 'days_keep_outbound_message_webhook_events',
+                'default_setting_name'          => 'numeric',
+                'default_setting_value'         => '30',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => 'Number of days to retain completed or failed outbound message webhook events. Must be a positive whole number.',
+            ],
+            [
+                'default_setting_category'      => 'scheduled_jobs',
+                'default_setting_subcategory'   => 'delete_old_outbound_webhook_logs',
+                'default_setting_name'          => 'boolean',
+                'default_setting_value'         => 'true',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => 'Automatically deletes completed or failed outbound webhook logs older than the configured retention period.',
+            ],
+            [
+                'default_setting_category'      => 'scheduled_jobs',
+                'default_setting_subcategory'   => 'days_keep_outbound_webhook_logs',
+                'default_setting_name'          => 'numeric',
+                'default_setting_value'         => '30',
+                'default_setting_enabled'       => true,
+                'default_setting_description'   => 'Number of days to retain completed or failed outbound webhook logs. Must be a positive whole number.',
             ],
             [
                 'default_setting_category'      => 'scheduled_jobs',
