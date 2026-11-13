@@ -73,7 +73,7 @@ class InstallFrontendAssets extends Command
         $archive = $this->option('archive');
         if (!$archive) {
             $filename = 'fspbx-frontend-'.$version.'.tar.gz';
-            $url = 'https://github.com/nemerald-voip/fspbx/releases/download/v'.$version.'/'.$filename;
+            $url = 'https://github.com/junction1153/laravel-freeswitch/releases/download/v'.$version.'/'.$filename;
             $this->info('Downloading frontend assets for FS PBX '.$version.'...');
             $checksum = Http::connectTimeout(15)->timeout(30)->get($url.'.sha256')->throw()->body();
             if (!preg_match('/^([a-f0-9]{64})(?:\s|$)/D', trim($checksum), $matches)) {
