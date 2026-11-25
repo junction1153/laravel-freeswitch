@@ -19,6 +19,7 @@ use App\Models\RingGroups;
 use App\Models\Sanctum\PersonalAccessToken;
 use App\Models\User;
 use App\Models\UserDomainGroupPermissions;
+use App\Models\Voicemails;
 use App\Observers\BusinessHourHolidayObserver;
 use App\Observers\CallFlowObserver;
 use App\Observers\CallTranscriptionPolicyObserver;
@@ -35,6 +36,7 @@ use App\Observers\MessageObserver;
 use App\Observers\RingGroupObserver;
 use App\Observers\UserDomainGroupPermissionsObserver;
 use App\Observers\UserObserver;
+use App\Observers\VoicemailObserver;
 use App\Services\EmailDeliveryFailureReporter;
 use App\Services\PmsOutboundSyncContext;
 use App\Services\PhoneNumberService;
@@ -61,8 +63,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        Sanctum::ignoreMigrations();
-
         $this->app->singleton(EmailDeliveryFailureReporter::class);
 
         $this->app->singleton(PmsOutboundSyncContext::class);
@@ -138,6 +138,7 @@ class AppServiceProvider extends ServiceProvider
         User::observe(UserObserver::class);
         UserDomainGroupPermissions::observe(UserDomainGroupPermissionsObserver::class);
         Extensions::observe(ExtensionObserver::class);
+        Voicemails::observe(VoicemailObserver::class);
         \App\Models\CallCenterAgents::observe(\App\Observers\CallCenterAgentObserver::class);
         EmergencyCall::observe(EmergencyCallObserver::class);
         EmergencyCallMember::observe(EmergencyCallMemberObserver::class);

@@ -7,7 +7,6 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Bus\Queueable;
 use App\Models\DomainSettings;
-use Illuminate\Support\Carbon;
 use App\Models\DefaultSettings;
 use App\Models\VoicemailMessages;
 use App\Models\Extensions;
@@ -98,12 +97,23 @@ class SendNewVoicemailNotificationByEmail implements ShouldQueue
         Redis::throttle('email')->allow(2)->every(1)->then(function () {
 
             $message = VoicemailMessages::select('voicemail_message_uuid', 'domain_uuid', 'voicemail_uuid', 'created_epoch', 'caller_id_name', 'caller_id_number', 'message_length', 'message_transcription')
-                ->with('voicemail:voicemail_uuid,voicemail_id,voicemail_mail_to,voicemail_transcription_enabled,voicemail_local_after_email,voicemail_description,voicemail_file')
+                ->with('voicemail:voicemail_uuid,domain_uuid,voicemail_id,voicemail_mail_to,voicemail_transcription_enabled,voicemail_local_after_email,voicemail_description,voicemail_file')
                 ->with('domain:domain_uuid,domain_name')
                 ->find($this->params['message_uuid']);
 
             // If already deleted (e.g., prior success cleanup), nothing to do
             if (!$message) return;
+
+            // A deleted or invalid mailbox is terminal. Preserve the message for review.
+            if (! $message->voicemail || $message->voicemail->domain_uuid !== $message->domain_uuid || ! $message->domain) {
+                logger()->warning('Skipping voicemail email: mailbox or account is missing or mismatched', [
+                    'voicemail_message_uuid' => $message->voicemail_message_uuid,
+                    'domain_uuid' => $message->domain_uuid,
+                    'voicemail_uuid' => $message->voicemail_uuid,
+                ]);
+
+                return;
+            }
 
             $domain_uuid = $message->domain_uuid;
 
@@ -212,8 +222,6 @@ class SendNewVoicemailNotificationByEmail implements ShouldQueue
                 $downloadUrl = app(VoicemailMessageUrlService::class)->downloadUrlForMessage($message);
             }
 
-            $timezone = get_local_time_zone($domain_uuid);
-
             $vars = [
                 'app_name' => config('app.name', 'FS PBX'),
                 'caller_id_number' => (string) $message->caller_id_number,
@@ -221,7 +229,7 @@ class SendNewVoicemailNotificationByEmail implements ShouldQueue
                 'voicemail_id'     => (string) ($message->voicemail?->voicemail_id ?? ''),
                 'voicemail_description'     => (string) ($message->voicemail?->voicemail_description ?? ''),
                 'dialed_user' => (string) ($message->voicemail?->voicemail_id ?? ''),
-                'message_date'       => Carbon::createFromTimestamp($message->created_epoch)->tz($timezone)->toDayDateTimeString(),
+                'message_date'       => $message->created_epoch_formatted,
                 'message_duration'   => gmdate('i\m s\s', (int) $message->message_length),
                 'message_text'    => (string) $message->message_transcription,
                 'voicemail_download_url' => (string) $downloadUrl,
@@ -234,6 +242,7 @@ class SendNewVoicemailNotificationByEmail implements ShouldQueue
                 ->first();
             $vars['origination_callee_id_name'] = $extension?->name_formatted;
             $vars['new_messages'] = VoicemailMessages::where('voicemail_uuid', $message->voicemail->voicemail_uuid)
+                ->where('domain_uuid', $domain_uuid)
                 ->whereNull('message_status')
                 ->count();
 

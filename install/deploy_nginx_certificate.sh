@@ -1,6 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -euo pipefail
+
+# Cron and non-interactive SSH may omit the directories containing nginx.
+export PATH="${PATH:-/usr/bin:/bin}:/usr/local/sbin:/usr/sbin:/sbin"
 
 FULLCHAIN_SOURCE="${1:-}"
 PRIVATE_KEY_SOURCE="${2:-}"

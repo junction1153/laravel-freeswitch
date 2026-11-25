@@ -35,6 +35,7 @@ fs_prepare_compiler_cache
 export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib/$(gcc -dumpmachine)/pkgconfig:${PKG_CONFIG_PATH:-}"
 
 fs_clone https://github.com/nemerald-voip/freeswitch.git "$FREESWITCH_VERSION" "$BUILD_DIR/freeswitch"
+fs_check_source_version "$BUILD_DIR/freeswitch"
 CONFIG_SOURCE="$FS_CONF_DIR"
 if [[ "$FRESH_INSTALL" == true ]]; then
     CONFIG_SOURCE="$BUILD_DIR/default-config"
@@ -60,7 +61,9 @@ make -j "$JOBS"
 ccache --show-stats > "$FS_BACKUP_DIR/compiler-cache-after.txt"
 STAGE="$BUILD_DIR/stage"
 make DESTDIR="$STAGE" install
-python3 "$FS_CONFIG_TOOL" check-modules "$CONFIG_SOURCE" "$STAGE$FS_MOD_DIR"
+python3 "$FS_CONFIG_TOOL" check-modules \
+    "$CONFIG_SOURCE" "$STAGE$FS_MOD_DIR"
+
 export LD_LIBRARY_PATH="$STAGE/usr/lib:$STAGE/usr/lib/$(gcc -dumpmachine):${LD_LIBRARY_PATH:-}"
 if ldd "$STAGE/usr/bin/freeswitch" | grep -q 'not found'; then
     fs_die 'The candidate FreeSWITCH binary has unresolved shared libraries.'

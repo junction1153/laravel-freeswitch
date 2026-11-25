@@ -91,8 +91,7 @@ class SystemSettingsController extends Controller
                     ? app(\App\Services\HomerApiService::class)->publicSettings() : null,
                 'messagingSettings' => function () {
                     return userCheckPermission('default_setting_view') ? [
-                        ...app(PhotoCompressionSettings::class)->settings(),
-                        'available' => app(PhotoCompressionService::class)->available(),
+                        ...app(\App\Services\Messaging\MessagingPageSettings::class)->props(),
                     ] : null;
                 },
                 'scheduled_jobs' => function () {
@@ -110,7 +109,7 @@ class SystemSettingsController extends Controller
     public function updateMessaging(UpdateMessagingSettingsRequest $request, PhotoCompressionSettings $settings): JsonResponse
     {
         return response()->json([
-            ...$settings->save(null, $request->validated()),
+            ...app(\App\Services\Messaging\MessagingPageSettings::class)->save(null, $request->validated()),
             'available' => app(PhotoCompressionService::class)->available(),
             'messages' => ['success' => [__('Messaging settings saved.')]],
         ]);
@@ -210,7 +209,14 @@ class SystemSettingsController extends Controller
                 ->where('default_setting_subcategory', $field['subcategory'])
                 ->where('default_setting_name', $field['name'])
                 ->first();
-            if ($row && (string) $row->default_setting_value === (string) $value) {
+            $enabled = $row ? filter_var($row->default_setting_enabled, FILTER_VALIDATE_BOOLEAN) : true;
+            // The format pickers display the built-in fallback when the row is disabled.
+            if ($row && ! $enabled && isset($field['fallback'])) {
+                if ($value === $field['fallback']) {
+                    continue;
+                }
+                $enabled = true;
+            } elseif ($row && (string) $row->default_setting_value === (string) $value) {
                 continue; // unchanged
             }
 
@@ -220,7 +226,7 @@ class SystemSettingsController extends Controller
                 'default_setting_name' => $field['name'],
                 'default_setting_value' => $value,
                 'default_setting_order' => $row?->default_setting_order,
-                'default_setting_enabled' => $row ? (bool) $row->default_setting_enabled : true,
+                'default_setting_enabled' => $enabled,
                 'default_setting_description' => $row?->default_setting_description,
             ], $row);
         }
@@ -228,6 +234,8 @@ class SystemSettingsController extends Controller
 
     public function getPaymentGatewayData(Request $request)
     {
+        abort_unless(userCheckPermission('payment_gateways_view'), 403);
+
         try {
             $gateways = PaymentGateway::with('settings')->get()
                 ->map(function ($gw) {
